@@ -8,6 +8,9 @@
 #   ./setup-cross.sh musl      # 仅下载 musl 交叉编译器
 #   ./setup-cross.sh all       # 全部下载
 #
+# 安全: 下载使用 HTTPS，curl 带 -f 标志确保 HTTP 错误时失败。
+#       建议下载后自行验证 SHA256（来源官网可查）。
+#
 # 代理: 如果 proxy_on 可用，会自动启用
 
 set -e
@@ -22,13 +25,26 @@ cd "$HERE"
 download() {
     url="$1"
     out="$2"
+    expected_sha256="$3"
     if [ -f "$out" ]; then
         echo "  ✅ 已有 $out"
         return 0
     fi
     echo "  ⬇️  下载 $url"
-    curl -sL --connect-timeout 15 --max-time 600 "$url" -o "$out"
+    curl -sLf --connect-timeout 15 --max-time 600 "$url" -o "$out"
     ls -lh "$out"
+    # 如果提供了预期 SHA256，自动校验
+    if [ -n "$expected_sha256" ]; then
+        actual=$(sha256sum "$out" | cut -d' ' -f1)
+        if [ "$actual" != "$expected_sha256" ]; then
+            echo "  ❌ SHA256 不匹配！预期 $expected_sha256，实际 $actual"
+            rm -f "$out"
+            exit 1
+        fi
+        echo "  ✅ SHA256 验证通过"
+    else
+        echo "  ⚠️  未校验 SHA256，建议从官网手动验证"
+    fi
 }
 
 setup_zig() {
@@ -37,9 +53,11 @@ setup_zig() {
         echo "  ✅  zig 已安装: $(zig-install/zig version)"
         return
     fi
-    download "https://ziglang.org/download/0.14.0/zig-linux-x86_64-0.14.0.tar.xz" /tmp/zig.tar.xz
+    # 从 ziglang.org 下载（HTTPS）
+    download "https://ziglang.org/download/0.14.0/zig-linux-x86_64-0.14.0.tar.xz" /tmp/zig.tar.xz ""
     tar xf /tmp/zig.tar.xz -C "$HERE"
     mv "$HERE"/zig-linux-x86_64-* "$HERE"/zig-install
+    rm -f /tmp/zig.tar.xz
     echo "  ✅ zig $(zig-install/zig version) 就绪"
 }
 
@@ -49,8 +67,10 @@ setup_musl() {
         echo "  ✅ musl-gcc 已安装"
         return
     fi
-    download "https://musl.cc/mipsel-linux-musl-cross.tgz" /tmp/musl.tgz
+    # 从 musl.cc 下载（广泛使用的社区源，Rust cross 项目默认源）
+    download "https://musl.cc/mipsel-linux-musl-cross.tgz" /tmp/musl.tgz ""
     tar xzf /tmp/musl.tgz -C "$HERE"
+    rm -f /tmp/musl.tgz
     echo "  ✅ musl 交叉编译器就绪"
 }
 
