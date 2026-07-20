@@ -113,6 +113,27 @@ bit 位置:  5               6             7
 权限名:    compute:submit  compute:cancel  (预留)
 ```
 
+#### 权限目录（统一列表）
+
+所有权限定义在一张表中，各页面复用同一份数据：
+
+| bit | 名称 | 可申请 | 谁可批准 |
+|-----|------|--------|---------|
+| 0 | connector | ✅ | 管理员 |
+| 1 | admin | ❌ | 仅根管理员 |
+| 2 | device | ✅ | 管理员 |
+| 3 | storage:read | ✅ | 管理员 |
+| 4 | storage:write | ✅ | 管理员 |
+| 5 | compute:submit | ✅ | 管理员 |
+| 6 | compute:cancel | ✅ | 管理员 |
+
+```
+MCU 申请示例:
+  POST /api/signup
+  { "cert": "...", "hostname": "sensor-01", "requested": "05" }
+  // 05 = bit0(connector) + bit2(device) → 上网 + 算力节点
+```
+
 #### 核心设计：connector ≠ device（上网权与委派权分离）
 
 ```
@@ -285,9 +306,10 @@ POST /api/permissions/restore-bypass
 ### 通用 API（所有客户端共用）
 
 ```
-POST /api/signup   ← 提交证书 + 主机名
+POST /api/signup   ← 提交证书 + 主机名 + 申请的权限
   Body: { "cert": "-----BEGIN CERTIFICATE-----...",
-          "hostname": "my-server" }
+          "hostname": "my-server",
+          "requested": "05" }          ← hex 位图，可选，默认 01(connector)
   Response: { "request_id": "uuid", "status": "pending" }
   Errors:
     400 — cert 格式无效
@@ -371,9 +393,14 @@ ESP32 / MCU:    教程 C 代码片段 + 编译烧录指引
   │ 3  │ 服务器A  │ 11223344...      │ 浏览器           │
   └────┴──────────┴──────────────────┴──────────────────┘
 
-  任选一个:
-  [同意 → 选权限位图 → 写入权限表]
-  [拒绝 → 写原因 → 下次轮询返回 rejected]
+  admin 看到申请的设备及请求的权限:
+
+  PC-A  请求: connector, storage:rw
+        已选: [x] connector  [x] storage:rw  [ ] admin (不可申请)
+        [同意已选] [同意全部] [拒绝]
+
+  管理员只能批准自己权限范围内的 bit（admin 权限不可由普通管理员批准）
+  根管理员能看到并批准所有 bit
 ```
 
 

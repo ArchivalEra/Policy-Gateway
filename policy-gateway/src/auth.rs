@@ -19,6 +19,30 @@ pub const BIT_COMPUTE_SUBMIT: u8 = 5;
 #[allow(unused)]
 pub const BIT_COMPUTE_CANCEL: u8 = 6;
 
+/// 权限目录：统一列表，定义每个权限的名称、是否可申请、谁可批准
+/// 返回 Vec<(bit, 名称, 可申请?, 仅根管理员批准?)>
+pub fn permission_catalog() -> Vec<(u8, &'static str, bool, bool)> {
+    vec![
+        (BIT_CONNECTOR, "connector", true, false),      // 上网 — 可申请，管理员可批准
+        (BIT_ADMIN,     "admin",     false, true),      // 管理员 — 不可申请，仅根可批准
+        (BIT_DEVICE,    "device",    true, false),      // 算力节点 — 可申请，管理员可批准
+        (BIT_STORAGE_READ,  "storage:read",  true, false),
+        (BIT_STORAGE_WRITE, "storage:write", true, false),
+        (BIT_COMPUTE_SUBMIT, "compute:submit", true, false),
+        (BIT_COMPUTE_CANCEL, "compute:cancel", true, false),
+    ]
+}
+
+/// 根据请求者身份过滤可批准的权限列表
+/// is_root: 请求者是否为根管理员
+pub fn grantable_permissions(is_root: bool) -> Vec<(u8, &'static str)> {
+    permission_catalog()
+        .into_iter()
+        .filter(|(_, _, _, root_only)| is_root || !root_only)
+        .map(|(bit, name, _, _)| (bit, name))
+        .collect()
+}
+
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub enum EntryStatus {
     Active,
@@ -44,6 +68,8 @@ pub struct PermissionEntry {
     pub hostname: String,
     /// 位图，每 bit 代表一个权限
     pub bitmap: u64,
+    /// 申请的权限（审批时参考），admin 可批准子集
+    pub requested_bitmap: u64,
     pub status: EntryStatus,
     pub mac: Option<String>,
     pub created_at: i64,
@@ -85,11 +111,13 @@ impl AuthTable {
         sha256: [u8; 32],
         hostname: String,
         request_id: String,
+        requested_bitmap: u64,
     ) {
         let entry = PermissionEntry {
             sha256,
             hostname,
             bitmap: 0,
+            requested_bitmap,
             status: EntryStatus::Pending,
             mac: None,
             created_at: chrono::Utc::now().timestamp(),
@@ -160,7 +188,7 @@ mod tests {
     fn test_add_and_approve() {
         let mut t = AuthTable::new();
         let h = test_sha256(1);
-        t.add_pending(h, "test-pc".into(), "req-1".into());
+        t.add_pending(h, "test-pc".into(), "req-1".into(), 0x01);
 
         assert_eq!(t.get(&h).unwrap().status, EntryStatus::Pending);
         assert!(t.has_bit(&h, BIT_CONNECTOR).is_none()); // pending 不暴露 bit
@@ -175,7 +203,7 @@ mod tests {
         // approve 后再次 approve 同一 request_id 应返回 None
         let mut t = AuthTable::new();
         let h = test_sha256(5);
-        t.add_pending(h, "test".into(), "req-5".into());
+        t.add_pending(h, "test".into(), "req-5".into(), 0x01);
         assert!(t.approve("req-5", 0x01).is_some());
         assert!(t.approve("req-5", 0x03).is_none()); // 已从 pending 移除
     }
@@ -184,7 +212,7 @@ mod tests {
     fn test_revoke_and_restore() {
         let mut t = AuthTable::new();
         let h = test_sha256(2);
-        t.add_pending(h, "nas".into(), "req-2".into());
+        t.add_pending(h, "nas".into(), "req-2".into(), 0x01);
         t.approve("req-2", 1 << BIT_CONNECTOR);
 
         t.revoke(&h);

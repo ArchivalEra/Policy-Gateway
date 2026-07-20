@@ -16,6 +16,9 @@ pub struct SignupRequest {
     pub cert: String,
     /// 设备主机名（任意 Unicode）
     pub hostname: String,
+    /// 申请的权限位图（hex），如 "05" = connector+device
+    /// 不传或传空则默认只申请 connector
+    pub requested: Option<String>,
 }
 
 #[derive(Serialize)]
@@ -72,7 +75,8 @@ pub async fn handle(
                 Json(ErrorResponse { error: "证书已存在，不能重复提交".into() }),
             ));
         }
-        table.add_pending(sha256, req.hostname.clone(), request_id.clone());
+        let req_bitmap = parse_requested_bitmap(req.requested.as_deref());
+        table.add_pending(sha256, req.hostname.clone(), request_id.clone(), req_bitmap);
     }
 
     log::info!("📝 新证书申请: {} hostname={} sha256={}", request_id, req.hostname, sha256_hex);
@@ -82,6 +86,16 @@ pub async fn handle(
         status: "pending".into(),
         sha256: sha256_hex,
     }))
+}
+
+/// 解析请求的权限位图（hex 字符串），默认返回 connector
+fn parse_requested_bitmap(s: Option<&str>) -> u64 {
+    match s {
+        Some(h) if !h.is_empty() => {
+            u64::from_str_radix(h, 16).unwrap_or(1u64 << crate::auth::BIT_CONNECTOR)
+        }
+        _ => 1u64 << crate::auth::BIT_CONNECTOR,
+    }
 }
 
 /// 解析 PEM 并验证其为合法的 X.509 证书（至少 DER 能解析）

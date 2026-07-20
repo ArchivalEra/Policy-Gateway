@@ -75,6 +75,7 @@ pub async fn handle_page(
                 <td>{}</td>
                 <td>{}</td>
                 <td><code>{}</code></td>
+                <td><code>{}</code></td>
                 <td>{}</td>
                 <td>
                     <button onclick="approve('{}', 1)">✅ connector</button>
@@ -82,7 +83,7 @@ pub async fn handle_page(
                     <button onclick="reject('{}')">❌ 拒绝</button>
                 </td>
             </tr>"#,
-            safe_rid, safe_hostname, sha256_hex, entry.status,
+            safe_rid, safe_hostname, sha256_hex, format!("{:x}", entry.requested_bitmap), entry.status,
             safe_rid, safe_rid, safe_rid
         ));
     }

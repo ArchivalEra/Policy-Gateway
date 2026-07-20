@@ -74,6 +74,7 @@ mod tests {
             sha256: [1u8; 32],
             hostname: "test".into(),
             bitmap: 0x01,
+            requested_bitmap: 0x01,
             status: EntryStatus::Active,
             mac: None,
             created_at: 1234567890,
