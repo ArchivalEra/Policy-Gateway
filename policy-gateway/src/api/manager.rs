@@ -156,12 +156,17 @@ pub async fn handle_approve(
     match req.action.as_str() {
         "approve" => {
             let bitmap = req.bitmap.unwrap_or(1 << BIT_CONNECTOR);
-            if bitmap > 0xFFFF {
+            // 只允许授予当前管理员有权限的 bit
+            let is_root = false; // TODO Phase 1: 根据 mTLS 证书判断
+            let allowed = crate::auth::grantable_permissions(is_root)
+                .iter().fold(0u64, |acc, (bit, _)| acc | (1u64 << bit));
+            let filtered_bitmap = bitmap & allowed;
+            if filtered_bitmap == 0 {
                 return Err((StatusCode::BAD_REQUEST, Json(ApproveResponse {
-                    status: "error".into(), message: "bitmap 超出范围".into(),
+                    status: "error".into(), message: "无可授予的权限".into(),
                 })));
             }
-            match table.approve(&req.request_id, bitmap) {
+            match table.approve(&req.request_id, filtered_bitmap) {
                 Some(entry) => {
                     log::info!("✅ 批准: {} ({})", req.request_id, entry.hostname);
                     Ok(Json(ApproveResponse {

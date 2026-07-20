@@ -90,12 +90,17 @@ pub async fn handle(
 
 /// 解析请求的权限位图（hex 字符串），默认返回 connector
 fn parse_requested_bitmap(s: Option<&str>) -> u64 {
-    match s {
+    let raw = match s {
         Some(h) if !h.is_empty() => {
             u64::from_str_radix(h, 16).unwrap_or(1u64 << crate::auth::BIT_CONNECTOR)
         }
         _ => 1u64 << crate::auth::BIT_CONNECTOR,
-    }
+    };
+    // 过滤掉不可申请的权限（如 admin）
+    let mask = crate::auth::permission_catalog()
+        .iter().filter(|(_, _, r, _)| *r)
+        .fold(0u64, |acc, (bit, _, _, _)| acc | (1u64 << bit));
+    raw & mask
 }
 
 /// 解析 PEM 并验证其为合法的 X.509 证书（至少 DER 能解析）
