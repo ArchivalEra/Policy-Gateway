@@ -507,6 +507,120 @@ DNS 劫持对 HTTPS 请求无效（浏览器会报证书错误）:
 ```
 
 
+
+## 八-乙、版本管理与回滚
+
+### 证书与权限的可扩展性
+
+目前定义了 7 个权限位（bit 0-6），而位图使用 `u64` 存储，理论可支持 **64 个权限**，余量 57 个。
+
+四种证书类型本质上是预定义的 **位图模板**：
+
+| 证书类型 | 位图 | 可扩展？ |
+|---------|------|---------|
+| 根证书 | 全部 bit=1 | — |
+| 管理证书 | bit0(connector)+bit1(admin) | 可加 |
+| 连接证书 | bit0(connector) | 可加 |
+| 设备证书 | bit0+bit2(device) | 可加 |
+
+新增权限只需在模板末尾追加 bit，旧证书不受影响。**完全可扩展。**
+
+### 版本管理程序（"不死鸟"模式）
+
+类似 ImmortalWrt 的双分区固件保护，对权限表和配置做 **快照 + 原子切换 + 自动回滚**。
+
+```
+命令: vm (version manager)
+
+vm snapshot [name]          ← 创建当前状态快照 (需 admin)
+vm list                     ← 列出所有快照 (任何用户)
+vm status                   ← 当前版本信息 (任何用户)
+vm rollback <id>            ← 回滚到指定快照 (需 admin + 二次确认)
+vm diff <id1> <id2>         ← 对比两个快照差异 (任何用户)
+vm gc                       ← 清理旧快照 (需 admin)
+
+安全:
+  - snapshot/rollback/gc 均需 mTLS + admin 权限
+  - rollback 需要二次确认 (非 root 不可执行)
+  - rollback 时保留当前 restore_counts，不从快照恢复
+  - manager_token_hash 在回滚时保留当前值，不从快照覆盖
+  - 快照使用 HMAC-SHA256 签名 (密钥派生自 ca.key)，防篡改
+```
+
+### 快照内容
+
+```
+快照 (存储为单个 JSON 文件 + HMAC 签名):
+  {
+    "version": 42,
+    "created_at": "2026-07-20T15:00:00Z",
+    "reason": "升级前备份",
+    "hmac": "sha256$abc123...",              ← HMAC 防篡改，密钥派生自 ca.key
+    "data": {
+      "permission_table": [{ sha256, hostname, bitmap, status, mac }, ...],
+      "prl": [{ serial, policy, revoked_at }, ...],
+      "config": { ... }
+    }
+  }
+
+不回滚的字段 (保留当前值):
+  - restore_counts: 回滚时不覆盖，防止绕过每日恢复上限
+  - manager_token_hash: 回滚时保留，防止旧 token 重新生效
+```
+
+### 原子切换 + 自动回滚
+
+```
+应用新配置:
+  ① PREPARE: 写新快照 + 标记 pending
+  ② APPLY:   切换到新配置
+  ③ COMMIT:  运行健康检查 (mTLS 可达? 心跳正常?)
+      ├── 成功 → 标记 active，完成
+      └── 失败 → 自动回滚到上一个 active 快照，上报错误
+
+回滚安全策略:
+  - restore_counts 保留当前值（不覆盖）
+  - manager_token_hash 保留当前值（不覆盖）
+  - 如果当前快照包含吊销操作，回滚时发出警告
+  - 回滚需二次确认（root 确认 + 键入 yes）
+
+不死鸟保障:
+  每次变动前自动创建 pre-update 快照
+  回滚不依赖外部系统（路由器本地存最近 5 个快照）
+  Worker KV 存远程备份（可作为跨设备回滚源）
+```
+
+### 存储位置
+
+```
+本地（路由器 /tmp 或闪存）:
+  /etc/vm/snapshots/v-{id}.json     ← 快照文件
+  /etc/vm/current -> v-{id}.json    ← 当前版本软链接
+
+USB 硬盘:
+  /mnt/usb/backup/vm/               ← 持久归档
+
+Worker KV:
+  vm_snapshots: { version → snapshot }
+```
+
+### 与同步的关系
+
+同步版本号（`SyncPacket.version`）就是版本管理的版本号。
+双向同步时采用 last-write-wins，与快照机制共用同一套版本递增序列。
+
+### 关键操作认证
+
+| 操作 | 认证要求 |
+|------|---------|
+| vm snapshot | mTLS + admin 权限 |
+| vm rollback | mTLS + admin + root 二次确认 |
+| vm gc | mTLS + admin 权限 |
+| vm list / status / diff | 任何用户（本地 shell 或 mTLS）|
+
+
+
+
 ## 九、极限压缩部署（路由器）
 
 ```
