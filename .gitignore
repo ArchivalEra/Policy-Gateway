@@ -3,6 +3,10 @@ newifi3_key
 newifi3_key.pub
 .reasonix/
 
+# === Local helper (not tracked) ===
+proxy-method.sh
+git-ssh-proxy.py
+
 # === Build artifacts ===
 policy-gateway/target/
 
