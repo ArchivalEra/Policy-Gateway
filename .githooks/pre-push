@@ -1,19 +1,20 @@
 #!/bin/sh
 # pre-push — 保护 main 分支 + 防敏感文件泄漏
+# 检查的是推送目标分支，不 care 当前 checkout 的是哪个分支
 
-remote="$1"
-url="$2"
-branch=$(git symbolic-ref HEAD 2>/dev/null | sed 's|refs/heads/||')
-
-# 保护 main 分支
-if [ "$branch" = "main" ]; then
-    echo "⚠️  当前在 main 分支。Phase 1+ 应推到 phase1 分支。"
-    echo "  推荐: git push origin HEAD:phase1"
-    echo "  如需推 main: SKIP_MAIN_CHECK=1 git push"
-    if [ -z "$SKIP_MAIN_CHECK" ]; then
-        exit 1
-    fi
-fi
+# 读取标准输入获取推送目标 (格式: "local_ref local_oid remote_ref remote_oid")
+while read local_ref local_oid remote_ref remote_oid; do
+    case "$remote_ref" in
+        */main)
+            echo "⚠️  main 分支受保护。Phase 1+ 应推到 phase1 分支。"
+            echo "  推荐: git push origin HEAD:phase1"
+            echo "  如需推 main: SKIP_MAIN_CHECK=1 git push"
+            if [ -z "$SKIP_MAIN_CHECK" ]; then
+                exit 1
+            fi
+            ;;
+    esac
+done
 
 # 防敏感文件
 for p in "root-key.pem" "manager-token.txt" "seed.json" ".env" "id_ed25519"; do
@@ -22,3 +23,4 @@ for p in "root-key.pem" "manager-token.txt" "seed.json" ".env" "id_ed25519"; do
         exit 1
     fi
 done
+exit 0
