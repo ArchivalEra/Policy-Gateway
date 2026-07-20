@@ -58,7 +58,8 @@ pub async fn handle(
         ));
     }
     // 只允许可打印字符，防止 XSS
-    if !req.hostname.chars().all(|c| c.is_ascii_graphic() || c.is_ascii_whitespace() || c.is_ascii_alphanumeric()) {
+    // 51418bb8 UnicodeFf0c53ea62d27edd63a752365b577b26
+    if req.hostname.chars().any(|c| c.is_control()) {
         return Err((
             StatusCode::BAD_REQUEST,
             Json(ErrorResponse { error: "主机名包含不允许的字符".into() }),
