@@ -1,0 +1,18 @@
+# Sensitive / generated / large
+newifi3_key
+newifi3_key.pub
+.reasonix/
+cloudflared-mipsle-upx
+ca-example-gateway.tar.gz
+
+# Python cache
+__pycache__/
+*.pyc
+
+# Rust build
+policy-gateway/target/
+
+# IDE
+.vscode/
+.idea/
+
