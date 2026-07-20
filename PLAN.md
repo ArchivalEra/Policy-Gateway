@@ -591,30 +591,34 @@ DNS 劫持对 HTTPS 请求无效（浏览器会报证书错误）:
 ## 九、极限压缩部署（路由器）
 
 ```
-newifi3 闪存: 10MB
-├── ImmortalWrt 系统:   ~5MB
-├── 可用空间:           ~5MB
-│
-├── policy-gateway 占用:
-│   ├── policy-gateway (UPX)     800 kB   ← Rust 单二进制
-│   ├── 前端页面 (xz)      200 kB   ← 静态 HTML
-│   ├── 权限模板 + 配置     5 kB
-│   └── 证书 + 密钥        10 kB
-│   └── 总计:            ~1 MB
-│
-├── 余量: ~4 MB
+newifi3 闪存: 10MB                        USB 32GB~1TB
+┌──────────────────────┐                ┌──────────────────────────┐
+│ ImmortalWrt 系统 ~5MB │                │ /mnt/usb/                │
+│                      │                │ ├── policy-gateway/      │
+│ 闪存只放 1 个东西:    │                │ │   ├── policy-gateway   │
+│                      │                │ │   │   (modelize 版本)   │
+│  policy-gateway      │                │ │   ├── modules/         │
+│  (minimize, UPX)     │                │ │   │   ├── compute.so   │
+│  ~800kB              │                │ │   │   ├── storage.so   │
+│                      │                │ │   │   └── vm.so        │
+│ 开机 → 解压到 /tmp   │                │ │   ├── frontend/       │
+│       → 启动内核      │                │ │   │   └── (React SPA) │
+│                      │                │ │   └── config/         │
+│ 内核只做:            │                │ ├── share/              │
+│  ├── 认证门户        │                │ ├── compute/            │
+│  ├── 权限表          │                │ └── backup/             │
+│  └── 上网控制        │                └──────────────────────────┘
+│                      │
+│ 余量 ~4MB 随便浪     │
+└──────────────────────┘
 
-运行模式:
-  闪存存压缩包 → 开机解压到 /tmp (tmpfs)
-  → policy-gateway 在内存中运行
-
-USB 32GB (独立挂载):
-  ├── /mnt/usb/share/      共享目录
-  ├── /mnt/usb/compute/    算力沙盒
-  └── /mnt/usb/apps/       第三方
+                  开机流程:
+                    ① 闪存 minimize 启动 → 认证门户 + 上网控制
+                    ② 挂载 USB → 检测到 modelize 版本
+                    ③ 可选的: 用 modelize 替换 minimize（热升级）
+                    ④ 模块按需加载，不阻塞核心功能
 ```
 
----
 
 ## 十、路线图
 
