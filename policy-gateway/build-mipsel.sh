@@ -1,32 +1,36 @@
 #!/bin/sh
-# 交叉编译 policy-gateway 到 mipsel-unknown-linux-musl
+# build-mipsel.sh — 交叉编译 policy-gateway 到 mipsel-unknown-linux-musl
 #
-# 环境: ImmortalWrt SDK 或 zig 工具链
-# 作者建议: 在 3900X 上开 full LTO 编译
+# 先运行 setup-cross.sh 下载工具链，然后运行本脚本：
+#   ./setup-cross.sh
+#   ./build-mipsel.sh
+#
+# 本脚本使用项目目录内的本地工具链，不依赖系统安装。
 
 set -e
-TARGET=mipsel-unknown-linux-musl
-PROFILE=release
+HERE="$(cd "$(dirname "$0")" && pwd)"
+export PATH="$HERE/zig-install:$HERE/mipsel-linux-musl-cross/bin:$PATH"
 
-echo "=== 交叉编译 policy-gateway for $TARGET ==="
+echo "=== 交叉编译 policy-gateway for mipsel-unknown-linux-musl ==="
 
-# 方式 1: cargo-zigbuild (推荐，zig 内置 mipsel musl 支持)
-#   cargo install cargo-zigbuild
-#   cargo zigbuild --target $TARGET --release
+# 优先用 cargo-zigbuild（zig 内置 mipsel musl 支持）
+if command -v cargo-zigbuild 2>/dev/null; then
+    cargo zigbuild --target mipsel-unknown-linux-musl --release
+else
+    # 退而用 musl-gcc + nightly build-std
+    export CC_mipsel_unknown_linux_musl=mipsel-linux-musl-gcc
+    export CARGO_TARGET_MIPSEL_UNKNOWN_LINUX_MUSL_LINKER=mipsel-linux-musl-gcc
+    cargo +nightly build -Z build-std --target mipsel-unknown-linux-musl --release
+fi
 
-# 方式 2: ImmortalWrt SDK
-#   下载 SDK: https://mirrors.nju.edu.cn/immortalwrt/releases/23.05.4/targets/ramips/mt7621/
-#   export PATH=/path/to/sdk/staging_dir/toolchain-mipsel_24kc_gcc-12.3.0_musl/bin:$PATH
-#   export CC_mipsel_unknown_linux_musl=mipsel-openwrt-linux-gcc
-#   export CARGO_TARGET_MIPSEL_UNKNOWN_LINUX_MUSL_LINKER=mipsel-openwrt-linux-gcc
-#   cargo build --target $TARGET --release
+echo "=== 编译完成 ==="
+ls -lh "target/mipsel-unknown-linux-musl/release/policy-gateway" 2>/dev/null || \
+ls -lh "target/release/policy-gateway" 2>/dev/null
 
-# 方式 3: musl.cc 工具链
-#   下载: wget https://musl.cc/mipsel-linux-musl-cross.tgz
-#   tar xf mipsel-linux-musl-cross.tgz
-#   export PATH=$PWD/mipsel-linux-musl-cross/bin:$PATH
-#   cargo build --target $TARGET --release
-
-echo ""
-echo "选择一种方式，取消注释上面的对应段落，然后运行此脚本。"
-echo "编译完成后用 UPX 压缩: upx --best target/$TARGET/$PROFILE/policy-gateway"
+# UPX 压缩
+if command -v upx >/dev/null 2>&1; then
+    echo "=== UPX 压缩 ==="
+    BIN=$(find target -name policy-gateway -type f | head -1)
+    [ -n "$BIN" ] && upx --best "$BIN" && ls -lh "$BIN"
+fi
+echo "=== 完成 ==="

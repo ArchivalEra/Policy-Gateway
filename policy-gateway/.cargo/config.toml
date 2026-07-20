@@ -1,14 +1,2 @@
-# Cross-compilation for mipsel-unknown-linux-musl
-#
-# Prerequisites:
-#   1. Install mipsel musl cross-compiler:
-#      sudo apt install gcc-mipsel-linux-musl
-#      or use ImmortalWrt SDK toolchain
-#
-#   2. Build Rust std for mipsel:
-#      cargo build -Z build-std --target mipsel-unknown-linux-musl --release
-#
-#   3. Or use the OpenWrt/ImmortalWrt SDK which has prebuilt Rust support
-
 [target.mipsel-unknown-linux-musl]
 linker = "mipsel-linux-musl-gcc"

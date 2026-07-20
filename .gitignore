@@ -23,3 +23,24 @@ __pycache__/
 # === OS ===
 .DS_Store
 Thumbs.db
+# Toolchain (download by setup script, not tracked in git)
+policy-gateway/mipsel-linux-musl-cross/
+policy-gateway/zig-install/
+policy-gateway/zig-linux-*/
+policy-gateway/rust-nightly-*/
+policy-gateway/rust-src-*/
+policy-gateway/rust-src-nightly-*/
+policy-gateway/custom-tc/
+policy-gateway/mips-sysroot/
+policy-gateway/lib-src
+policy-gateway/pgw
+policy-gateway/rustc-bootstrap.sh
+policy-gateway/rust-sysroot-patch/
+policy-gateway/.cargo-home/
+policy-gateway/.rustup-home/
+policy-gateway/*.tar.*
+
+policy-gateway/rust-sysroot/
+policy-gateway/rustc-wrapper.sh
+policy-gateway/rustup-home/
+rust-src-*/
