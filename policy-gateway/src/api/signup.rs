@@ -47,7 +47,22 @@ pub async fn handle(
     let sha256 = crate::tls::cert_sha256(&cert);
     let sha256_hex = hex::encode(sha256);
 
-    // 3. 在写锁内原子执行：查重 → 插入（防 TOCTOU）
+    // 3. 验证 hostname 长度和字符集
+    if req.hostname.is_empty() || req.hostname.len() > 255 {
+        return Err((
+            StatusCode::BAD_REQUEST,
+            Json(ErrorResponse { error: "主机名不能为空且不超过 255 字符".into() }),
+        ));
+    }
+    // 只允许可打印字符，防止 XSS
+    if !req.hostname.chars().all(|c| c.is_ascii_graphic() || c.is_ascii_whitespace() || c.is_ascii_alphanumeric()) {
+        return Err((
+            StatusCode::BAD_REQUEST,
+            Json(ErrorResponse { error: "主机名包含不允许的字符".into() }),
+        ));
+    }
+
+    // 4. 在写锁内原子执行：查重 → 插入（防 TOCTOU）
     let request_id = Uuid::new_v4().to_string();
     {
         let mut table = state.auth_table.write().await;
