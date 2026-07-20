@@ -13,14 +13,8 @@ mod tls;
 mod auth;
 mod api;
 mod anti_abuse;
-pub mod modules;  // 始终包含 core-portal
-
-#[cfg(feature = "compute")]
-pub mod compute;
-#[cfg(feature = "storage")]
-pub mod storage;
-#[cfg(feature = "vm")]
-pub mod vm;
+pub mod vm;  // VM — 始终包含，核心组件
+pub mod modules;
 
 /// 共享状态别名（api 模块中使用）
 pub type AppState = modules::CoreState;
@@ -112,6 +106,7 @@ async fn cli_mode(args: &[String]) {
                 std::process::exit(1);
             }
         },
+        Some("vm") => { vm::cli(&args[1..]); }
         Some("module") => {
             println!("📦 模块系统 v0.1");
             println!("  核心: portal（认证门户，必需）");

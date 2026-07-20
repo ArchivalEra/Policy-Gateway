@@ -1,0 +1,20 @@
+[package]
+name = "policy-gateway-vm"
+version = "0.1.0"
+edition = "2021"
+
+# VM — "不死鸟" 版本管理器
+# 独立于 policy-gateway 之外。主程序崩了它还能回滚。
+# 闪存占用目标: ~80kB (UPX后)
+
+[dependencies]
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+hex = "0.4"
+
+[profile.release]
+lto = true
+codegen-units = 1
+opt-level = "z"
+strip = true
+panic = "abort"

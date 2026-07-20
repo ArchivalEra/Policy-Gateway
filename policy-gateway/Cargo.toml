@@ -5,40 +5,25 @@ edition = "2021"
 
 [features]
 default = ["minimize"]
-
-# === 编译 profile ===
-# minimize  — 最小内核：仅认证门户 + 权限表 + GC
-# modelize  — 全量：内核 + 所有可选模块（计算、存储、VM...）
-#
-# 用法:
-#   cargo build --features "minimize"    → 闪存版 (~800kB UPX)
-#   cargo build --features "modelize"   → USB版  (~1.5MB UPX)
-
 minimize = []
-modelize = ["compute", "storage", "vm"]
+modelize = ["compute", "storage"]
 
-# 可选模块
-compute = []   # 计算调度
-storage = []   # 存储服务
-vm = []        # 版本管理
+compute = []
+storage = []
 
 [dependencies]
-# TLS
-rustls = { version = "0.23", features = ["ring"], optional = false }
+rustls = { version = "0.23", features = ["ring"] }
 rustls-pemfile = "2"
-# HTTP
 axum = "0.8"
 tokio = { version = "1", features = ["rt", "macros", "net", "io-util", "sync"] }
 tower = "0.5"
 tower-http = { version = "0.6", features = ["cors"] }
-# Crypto
 ring = "0.17"
 x509-parser = "0.18"
 base64 = "0.22"
 hex = "0.4"
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
-# Utils
 chrono = { version = "0.4", default-features = false, features = ["clock"] }
 uuid = { version = "1", features = ["v4"] }
 log = "0.4"
@@ -51,3 +36,6 @@ codegen-units = 1
 opt-level = "z"
 strip = true
 panic = "abort"
+
+[workspace]
+members = ["vm"]
