@@ -38,6 +38,9 @@ pub struct GcReport {
 }
 
 /// 权限目录：统一列表，定义每个权限的名称、是否可申请、谁可批准
+/// 动态可更新:
+///   - 删除权限: 仅从列表移除，不修改已存储的位图
+///   - 生效: valid_bits_mask() 实时变化，has_bit() 自动反映
 pub fn permission_catalog() -> Vec<(u8, &'static str, bool, bool)> {
     vec![
         (BIT_CONNECTOR, "connector", true, false),
@@ -50,6 +53,14 @@ pub fn permission_catalog() -> Vec<(u8, &'static str, bool, bool)> {
     ]
 }
 
+/// 获取当前所有有效权限的位图掩码
+/// 用于把设备的 bitmap 和目录解耦:
+///   设备的 0xFFFF → 但目录只有 7 个权限 → 结果 0x7F
+///   删除某权限后（如移除 device）→ mask 自动变化
+pub fn valid_bits_mask() -> u64 {
+    permission_catalog().iter().fold(0u64, |acc, (bit, _, _, _)| acc | (1u64 << bit))
+}
+
 /// 根据请求者身份过滤可批准的权限列表
 pub fn grantable_permissions(is_root: bool) -> Vec<(u8, &'static str)> {
     permission_catalog()
@@ -57,6 +68,11 @@ pub fn grantable_permissions(is_root: bool) -> Vec<(u8, &'static str)> {
         .filter(|(_, _, _, root_only)| is_root || !root_only)
         .map(|(bit, name, _, _)| (bit, name))
         .collect()
+}
+
+/// 返回当前目录中所有权限的可读名称列表
+pub fn list_permission_names() -> Vec<&'static str> {
+    permission_catalog().iter().map(|(_, name, _, _)| *name).collect()
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -105,12 +121,27 @@ impl AuthTable {
 
     // ============ 查询 ============
 
+    /// 查权限：检查某个设备是否有指定 bit
+    /// 设备的 bitmap 与 valid_bits_mask 取交后再判断
+    /// 这样目录中删除的权限自动失效
     pub fn has_bit(&self, sha256: &[u8; 32], bit: u8) -> Option<bool> {
         self.entries.get(sha256).and_then(|e| {
             if e.status != EntryStatus::Active {
                 return None;
             }
-            Some((e.bitmap >> bit) & 1 == 1)
+            let effective = e.bitmap & valid_bits_mask();
+            Some((effective >> bit) & 1 == 1)
+        })
+    }
+
+    /// 获取设备当前有效的权限位图（过滤后）
+    pub fn effective_bitmap(&self, sha256: &[u8; 32]) -> Option<u64> {
+        self.entries.get(sha256).map(|e| {
+            if e.status != EntryStatus::Active {
+                0
+            } else {
+                e.bitmap & valid_bits_mask()
+            }
         })
     }
 

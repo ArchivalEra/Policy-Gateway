@@ -45,7 +45,7 @@ pub async fn handle(
         Some(e) => Json(StatusResponse {
             status: e.status.to_string(),
             hostname: Some(e.hostname.clone()),
-            bitmap: Some(bitmap_to_hex(e.bitmap)),
+            bitmap: Some(bitmap_to_hex(e.bitmap & crate::auth::valid_bits_mask())),
             request_id: None, // 不暴露内部 ID
             reason: None,
         }),
