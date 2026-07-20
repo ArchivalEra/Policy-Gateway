@@ -1,0 +1,24 @@
+#!/bin/sh
+# pre-push — 保护 main 分支 + 防敏感文件泄漏
+
+remote="$1"
+url="$2"
+branch=$(git symbolic-ref HEAD 2>/dev/null | sed 's|refs/heads/||')
+
+# 保护 main 分支
+if [ "$branch" = "main" ]; then
+    echo "⚠️  当前在 main 分支。Phase 1+ 应推到 phase1 分支。"
+    echo "  推荐: git push origin HEAD:phase1"
+    echo "  如需推 main: SKIP_MAIN_CHECK=1 git push"
+    if [ -z "$SKIP_MAIN_CHECK" ]; then
+        exit 1
+    fi
+fi
+
+# 防敏感文件
+for p in "root-key.pem" "manager-token.txt" "seed.json" ".env" "id_ed25519"; do
+    if git diff --cached --name-only | grep -q "$p"; then
+        echo "❌ 含敏感文件 '$p'，推送被拒绝"
+        exit 1
+    fi
+done
