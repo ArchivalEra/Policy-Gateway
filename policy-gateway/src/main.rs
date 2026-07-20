@@ -13,7 +13,14 @@ mod tls;
 mod auth;
 mod api;
 mod anti_abuse;
-pub mod modules;
+pub mod modules;  // 始终包含 core-portal
+
+#[cfg(feature = "compute")]
+pub mod compute;
+#[cfg(feature = "storage")]
+pub mod storage;
+#[cfg(feature = "vm")]
+pub mod vm;
 
 /// 共享状态别名（api 模块中使用）
 pub type AppState = modules::CoreState;

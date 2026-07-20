@@ -3,11 +3,30 @@ name = "policy-gateway"
 version = "0.1.0"
 edition = "2021"
 
+[features]
+default = ["minimize"]
+
+# === 编译 profile ===
+# minimize  — 最小内核：仅认证门户 + 权限表 + GC
+# modelize  — 全量：内核 + 所有可选模块（计算、存储、VM...）
+#
+# 用法:
+#   cargo build --features "minimize"    → 闪存版 (~800kB UPX)
+#   cargo build --features "modelize"   → USB版  (~1.5MB UPX)
+
+minimize = []
+modelize = ["compute", "storage", "vm"]
+
+# 可选模块
+compute = []   # 计算调度
+storage = []   # 存储服务
+vm = []        # 版本管理
+
 [dependencies]
 # TLS
-rustls = { version = "0.23", features = ["ring"] }
+rustls = { version = "0.23", features = ["ring"], optional = false }
 rustls-pemfile = "2"
-# HTTP - use axum for now, fallback to warp if too large
+# HTTP
 axum = "0.8"
 tokio = { version = "1", features = ["rt", "macros", "net", "io-util", "sync"] }
 tower = "0.5"
