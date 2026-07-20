@@ -202,22 +202,41 @@ device (bit 2) ── 谁执行: Worker 调度器
 
 ### 权限表生命周期与垃圾回收
 
-权限表不是无限膨胀的。定期 GC 清理过期条目：
+权限表和事件日志**共用同一套 GC 规则**：
 
 ```
-GC 规则:
-  Compromised/Rejected 条目 → 7 天后自动删除
-  Pending 申请              → 24 小时后自动删除
-  Active 条目               → 永不自动删除（需手动吊销）
+GC 规则 (基于 event_log 判断，不额外扫描 permissions 表):
+  Compromised 超过 7 天 → 删除
+   查询 event_log: 该 sha256 最后的事件是 revoke? 且超过 7 天 → 清理
 
-CLI 命令:
-  policy-gateway perm gc      # 手动触发 GC
-  policy-gateway perm list    # 列出所有条目
-  policy-gateway perm stats   # 统计信息
+  Pending 超过 24h 无后续事件 → 删除
+   查询 event_log: 只有 signup 事件? 且超过 24h → 清理
 
-定时 GC:
-  后台每 1 小时自动执行一次
-  只有清理了条目才打日志，安静运行
+  注册后 24h 无任何访问 → 删除
+   查询 event_log: 没有 approve/heartbeat 事件 → 清理
+
+  event_log 本身:
+   保留最近 90 天 → 删除更早的日志
+   通过 seq 范围 DELETE，不破坏 append-only 语义
+
+GC 执行:
+  定时: 每小时自动运行
+  手动: policy-gateway perm gc
+  每次 GC 清理会在 event_log 追加 gc_cleanup 事件
+```
+
+复用最大化:
+
+```
+permissions 表        event_log 表          GC 规则
+┌──────────────┐      ┌──────────────┐      ┌──────────────┐
+│ 当前状态      │◄─────│ 变更历史       │◄─────│ 查 event_log  │
+│ (读频繁)     │      │ (写频繁)      │      │ 决定清理什么  │
+│              │      │              │      │              │
+│ 设备连接时查  │      │ 审计追溯     │      │ 不需要 extra  │
+│ 权限判断     │      │ 离线同步     │      │ 字段或扫描    │
+│              │      │ GC 决策源    │      │              │
+└──────────────┘      └──────────────┘      └──────────────┘
 ```
 
 权限可扩展性:
