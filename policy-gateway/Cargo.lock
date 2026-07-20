@@ -792,6 +792,7 @@ name = "policy-gateway-vm"
 version = "0.1.0"
 dependencies = [
  "hex",
+ "ring",
  "serde",
  "serde_json",
 ]
