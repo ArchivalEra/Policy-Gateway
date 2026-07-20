@@ -44,3 +44,7 @@ policy-gateway/rust-sysroot/
 policy-gateway/rustc-wrapper.sh
 policy-gateway/rustup-home/
 rust-src-*/
+policy-gateway/deploy/root-key.pem
+policy-gateway/deploy/root-cert.pem
+policy-gateway/deploy/manager-token.txt
+policy-gateway/deploy/seed.json
