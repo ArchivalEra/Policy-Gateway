@@ -1,0 +1,14 @@
+name = "policy-gateway-worker"
+main = "src/index.js"
+compatibility_date = "2025-07-01"
+
+# KV 命名空间（创建后绑定）
+# wrangler kv:namespace create AUTH_TABLE
+# wrangler kv:namespace create PENDING_QUEUE
+[[kv_namespaces]]
+binding = "AUTH_TABLE"
+id = ""
+
+[[kv_namespaces]]
+binding = "PENDING_QUEUE"
+id = ""
