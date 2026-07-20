@@ -10,9 +10,13 @@ use std::collections::HashMap;
 pub const BIT_CONNECTOR: u8 = 0;    // 上网
 pub const BIT_ADMIN: u8 = 1;        // 管理员
 pub const BIT_DEVICE: u8 = 2;       // 算力节点
+#[allow(unused)]
 pub const BIT_STORAGE_READ: u8 = 3;
+#[allow(unused)]
 pub const BIT_STORAGE_WRITE: u8 = 4;
+#[allow(unused)]
 pub const BIT_COMPUTE_SUBMIT: u8 = 5;
+#[allow(unused)]
 pub const BIT_COMPUTE_CANCEL: u8 = 6;
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -52,8 +56,6 @@ pub struct AuthTable {
     entries: HashMap<[u8; 32], PermissionEntry>,
     /// request_id → SHA256 (用于 pending 状态查询)
     pending: HashMap<String, [u8; 32]>,
-    /// 下一个可用的序列号
-    next_serial: u64,
 }
 
 impl AuthTable {
@@ -62,9 +64,12 @@ impl AuthTable {
     }
 
     /// 查权限：检查某个设备是否有指定 bit
+    /// 只有 Active 状态的条目才返回 Some，其余返回 None
     pub fn has_bit(&self, sha256: &[u8; 32], bit: u8) -> Option<bool> {
         self.entries.get(sha256).and_then(|e| {
-            if e.status != EntryStatus::Active { return None; }
+            if e.status != EntryStatus::Active {
+                return None;
+            }
             Some((e.bitmap >> bit) & 1 == 1)
         })
     }
@@ -74,7 +79,7 @@ impl AuthTable {
         self.entries.get(sha256)
     }
 
-    /// 添加 pending 申请
+    /// 添加 pending 申请（调用方确保不重复）
     pub fn add_pending(
         &mut self,
         sha256: [u8; 32],
@@ -93,12 +98,20 @@ impl AuthTable {
         self.entries.insert(sha256, entry);
     }
 
-    /// 审批通过：设置位图并激活
+    /// 审批通过：设置位图并激活，从 pending 映射移除
     pub fn approve(&mut self, request_id: &str, bitmap: u64) -> Option<&PermissionEntry> {
-        let sha256 = self.pending.get(request_id)?;
-        let entry = self.entries.get_mut(sha256)?;
+        let sha256 = self.pending.remove(request_id)?;  // 移除 pending，防止重复审批
+        let entry = self.entries.get_mut(&sha256)?;
         entry.bitmap = bitmap;
         entry.status = EntryStatus::Active;
+        Some(entry)
+    }
+
+    /// 拒绝并移除 pending
+    pub fn reject(&mut self, request_id: &str) -> Option<&PermissionEntry> {
+        let sha256 = self.pending.remove(request_id)?;
+        let entry = self.entries.get_mut(&sha256)?;
+        entry.status = EntryStatus::Rejected;
         Some(entry)
     }
 
@@ -118,14 +131,14 @@ impl AuthTable {
         self.entries.get(sha256)
     }
 
-    /// 吊销
+    /// 吊销（标记 compromised）
     pub fn revoke(&mut self, sha256: &[u8; 32]) {
         if let Some(e) = self.entries.get_mut(sha256) {
             e.status = EntryStatus::Compromised;
         }
     }
 
-    /// 恢复
+    /// 恢复（改回 Active）
     pub fn restore(&mut self, sha256: &[u8; 32]) {
         if let Some(e) = self.entries.get_mut(sha256) {
             e.status = EntryStatus::Active;
@@ -150,11 +163,21 @@ mod tests {
         t.add_pending(h, "test-pc".into(), "req-1".into());
 
         assert_eq!(t.get(&h).unwrap().status, EntryStatus::Pending);
-        assert!(t.has_bit(&h, BIT_CONNECTOR).is_none()); // pending 时不应返回
+        assert!(t.has_bit(&h, BIT_CONNECTOR).is_none()); // pending 不暴露 bit
 
         t.approve("req-1", 1 << BIT_CONNECTOR);
         assert_eq!(t.get(&h).unwrap().status, EntryStatus::Active);
         assert_eq!(t.has_bit(&h, BIT_CONNECTOR), Some(true));
+    }
+
+    #[test]
+    fn test_approve_idempotent() {
+        // approve 后再次 approve 同一 request_id 应返回 None
+        let mut t = AuthTable::new();
+        let h = test_sha256(5);
+        t.add_pending(h, "test".into(), "req-5".into());
+        assert!(t.approve("req-5", 0x01).is_some());
+        assert!(t.approve("req-5", 0x03).is_none()); // 已从 pending 移除
     }
 
     #[test]
@@ -166,10 +189,10 @@ mod tests {
 
         t.revoke(&h);
         assert_eq!(t.get(&h).unwrap().status, EntryStatus::Compromised);
-        assert_eq!(t.has_bit(&h, BIT_CONNECTOR), None);  // revoke → None
+        assert!(t.has_bit(&h, BIT_CONNECTOR).is_none()); // compromised 不暴露 bit
 
         t.restore(&h);
         assert_eq!(t.get(&h).unwrap().status, EntryStatus::Active);
-        assert_eq!(t.has_bit(&h, BIT_CONNECTOR), Some(true));  // restore → bit present
+        assert_eq!(t.has_bit(&h, BIT_CONNECTOR), Some(true));
     }
 }

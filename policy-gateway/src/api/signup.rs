@@ -34,12 +34,12 @@ pub async fn handle(
     State(state): State<Arc<AppState>>,
     Json(req): Json<SignupRequest>,
 ) -> Result<Json<SignupResponse>, (StatusCode, Json<ErrorResponse>)> {
-    // 1. 解析证书
-    let cert = match parse_pem_cert(&req.cert) {
+    // 1. 解析并验证证书 DER 格式
+    let cert = match parse_and_validate_cert(&req.cert) {
         Some(c) => c,
         None => return Err((
             StatusCode::BAD_REQUEST,
-            Json(ErrorResponse { error: "证书格式无效".into() }),
+            Json(ErrorResponse { error: "证书格式无效，请提交合法的 X.509 PEM 证书".into() }),
         )),
     };
 
@@ -47,24 +47,20 @@ pub async fn handle(
     let sha256 = crate::tls::cert_sha256(&cert);
     let sha256_hex = hex::encode(sha256);
 
-    // 3. 查重
-    let table = state.auth_table.read().await;
-    if table.get(&sha256).is_some() {
-        return Err((
-            StatusCode::CONFLICT,
-            Json(ErrorResponse { error: "证书已存在，不能重复提交".into() }),
-        ));
-    }
-    drop(table);
-
-    // 4. 生成 request_id，入 pending 队列
+    // 3. 在写锁内原子执行：查重 → 插入（防 TOCTOU）
     let request_id = Uuid::new_v4().to_string();
     {
         let mut table = state.auth_table.write().await;
-        table.add_pending(sha256, req.hostname, request_id.clone());
+        if table.get(&sha256).is_some() {
+            return Err((
+                StatusCode::CONFLICT,
+                Json(ErrorResponse { error: "证书已存在，不能重复提交".into() }),
+            ));
+        }
+        table.add_pending(sha256, req.hostname.clone(), request_id.clone());
     }
 
-    log::info!("📝 新证书申请: {} sha256={}", request_id, sha256_hex);
+    log::info!("📝 新证书申请: {} hostname={} sha256={}", request_id, req.hostname, sha256_hex);
 
     Ok(Json(SignupResponse {
         request_id,
@@ -73,16 +69,28 @@ pub async fn handle(
     }))
 }
 
-/// 从 PEM 文本中提取第一个 DER 证书
-fn parse_pem_cert(pem_str: &str) -> Option<CertificateDer<'static>> {
+/// 解析 PEM 并验证其为合法的 X.509 证书（至少 DER 能解析）
+fn parse_and_validate_cert(pem_str: &str) -> Option<CertificateDer<'static>> {
     use rustls_pemfile::Item;
+
     let mut reader = std::io::BufReader::new(pem_str.as_bytes());
-    for item in rustls_pemfile::read_all(&mut reader).flatten() {
-        if let Item::X509Certificate(der) = item {
-            return Some(CertificateDer::from(der.to_vec()));
-        }
+    let der_bytes = rustls_pemfile::read_all(&mut reader)
+        .filter_map(|r| r.ok())
+        .find_map(|item| {
+            if let Item::X509Certificate(der) = item {
+                Some(der.to_vec())
+            } else {
+                None
+            }
+        })?;
+
+    // 用 x509-parser 验证 DER 是合法的 X.509 证书
+    use x509_parser::prelude::*;
+    if parse_x509_certificate(&der_bytes).is_err() {
+        return None;
     }
-    None
+
+    Some(CertificateDer::from(der_bytes))
 }
 
 #[cfg(test)]
@@ -90,12 +98,20 @@ mod tests {
     use super::*;
 
     #[test]
-    fn test_parse_pem_cert_invalid() {
-        assert!(parse_pem_cert("not a cert at all").is_none());
+    fn test_parse_invalid() {
+        assert!(parse_and_validate_cert("not a cert").is_none());
     }
 
     #[test]
-    fn test_parse_pem_cert_empty() {
-        assert!(parse_pem_cert("").is_none());
+    fn test_parse_empty() {
+        assert!(parse_and_validate_cert("").is_none());
+    }
+
+    #[test]
+    fn test_parse_random_bytes() {
+        // 随机字节应该被 x509-parser 拒绝
+        let junk = vec![0x00, 0x01, 0x02, 0x03];
+        let pem = format!("-----BEGIN CERTIFICATE-----\n{}\n-----END CERTIFICATE-----", base64::encode(&junk));
+        assert!(parse_and_validate_cert(&pem).is_none());
     }
 }
