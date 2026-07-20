@@ -33,7 +33,7 @@ export default {
       // --- Recovery ---
       if (request.method === 'GET' && url.pathname === '/recover') return handleRecoverPage(env);
       if (request.method === 'POST' && url.pathname === '/api/recover/setup-pin') return handleSetupPin(request, env);
-      if (request.method === 'POST' && url.pathname === '/api/recover/verify') return handleRecoverVerify(request, env);
+      if (request.method === 'POST' && url.pathname === '/api/recover/verify') return handleRecoverVerifyToken(request, env);
 
       // --- Static assets ---
       if (url.pathname === '/' || url.pathname === '/index.html') return handleIndex(env);
@@ -72,8 +72,8 @@ pre{background:#f4f4f4;padding:10px;overflow-x:auto;font-size:13px}
 <p class="info">根证书丢失？如果你设置了恢复 PIN，可以在这里重新签发。</p>
 
 <div id="step1">
-  <h3>输入恢复 PIN</h3>
-  <input type="text" id="pin" placeholder="6位恢复PIN" maxlength="6" autocomplete="off">
+  <h3>输入恢复 Token</h3>
+  <input type="text" id="token" placeholder="恢复 Token" autocomplete="off">
   <button onclick="verifyPin()">验证 PIN 并签发新证书</button>
   <div id="msg1"></div>
 </div>
@@ -97,7 +97,7 @@ async function verifyPin() {
     const r = await fetch('/api/recover/verify', {
       method: 'POST',
       headers: {'Content-Type': 'application/json'},
-      body: JSON.stringify({ pin })
+      body: JSON.stringify({ token })
     });
     const d = await r.json();
     if (r.ok) {
@@ -127,7 +127,7 @@ function downloadCert() {
 }
 </script>
 <p style="margin-top:20px;font-size:13px;color:#666">
-还没有 PIN？联系路由器管理员在 /manager 生成。
+还没有恢复 Token？联系路由器管理员存在云盘/密码管理器中的长期凭证。
 </p>
 </body>
 </html>`;
@@ -160,31 +160,36 @@ async function handleSetupPin(request, env) {
 }
 
 /// POST /api/recover/verify — 验证 PIN + 签发新根证书
-async function handleRecoverVerify(request, env) {
-  const { pin } = await request.json();
-  if (!pin || pin.length !== 6) {
-    return json({ error: '请输入 6 位 PIN' }, 400);
+async function handleRecoverVerifyToken(request, env) {
+  const { token } = await request.json();
+  if (!token || token.length < 16) {
+    return json({ error: '\u8bf7\u8f93\u5165\u6062\u590d Token' }, 400);
   }
-
-  // 查找 PIN
-  const raw = await env.RECOVERY_PINS.get(pin);
-  if (!raw) {
-    return json({ error: 'PIN 无效' }, 401);
+  const expected = env.RECOVERY_TOKEN;
+  if (!expected) {
+    return json({ error: '\u6062\u590d\u529f\u80fd\u672a\u914d\u7f6e' }, 501);
   }
-
-  const record = JSON.parse(raw);
-  if (record.used) {
-    return json({ error: 'PIN 已使用过' }, 410);
+  if (token.length !== expected.length) {
+    return json({ error: 'Token \u65e0\u6548' }, 401);
   }
-  if (Date.now() > record.expires_at) {
-    return json({ error: 'PIN 已过期' }, 410);
+  let match = 0;
+  for (let i = 0; i < token.length; i++) {
+    match |= token.charCodeAt(i) ^ expected.charCodeAt(i);
   }
+  if (match !== 0) {
+    return json({ error: 'Token \u65e0\u6548' }, 401);
+  }
+  const cert = await generateSelfSignedCert('policy-gateway-recovered-root');
+  const sha256 = await certSha256(cert);
+  const entry = JSON.stringify({
+    sha256, hostname: '\u6062\u590d\u7684\u6839\u8bc1\u4e66', bitmap: 0xFF,
+    status: 'active', created_at: Date.now(), recovered: true
+  });
+  await env.AUTH_TABLE.put(sha256, entry);
+  return json({ status: 'ok', message: 'ok', cert });
+}
 
-  // 标记 PIN 已使用（一次性）
-  record.used = true;
-  await env.RECOVERY_PINS.put(pin, JSON.stringify(record));
-
-  // 生成新的根证书（在 Worker 中用 Web Crypto API）
+// 生成新的根证书（在 Worker 中用 Web Crypto API）
   // 自签名证书，标记为根管理员
   const cert = await generateSelfSignedCert('policy-gateway-recovered-root');
   const sha256 = await certSha256(cert);
@@ -321,7 +326,6 @@ async function handleSyncPull(env) {
     const raw = await env.RECOVERY_PINS.get(key.name);
     if (raw) pins.push(JSON.parse(raw));
   }
-  return json({ version: Date.now(), entries, recovery_pins: pins });
 }
 
 async function handleSyncPush(request, env) {

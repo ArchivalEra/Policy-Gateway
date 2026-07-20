@@ -44,6 +44,59 @@ device (单片机/算力节点)
   admin 提交: {"name": "interconnect:udp:6000-7000", "description": "设备间 UDP 通信"}
         ↓
   root 在 /manager 审批 → 追加到 permission_catalog → 分配新 bit
+
+## 根证书恢复机制
+
+恢复方式: **Cloudflare API Token**（取代 one-time PIN）
+
+```
+管理员在正常时:
+  生成一个 Cloudflare API Token（或任意长期凭证）
+  存储在个人的云盘 / 密码管理器（如 Bitwarden）
+  该 Token 不经过路由器或 Worker 传输
+
+丢失根证书后:
+  访问 Worker /recover 页面
+  输入 Cloudflare API Token（或其他预配置的凭证）
+  Worker 验证 Token → 签发新根证书
+  新证书同步到路由器权限表
+  用户下载 .pem → 导入浏览器 → 恢复完成
+
+安全性:
+  Token 仅存在用户的云盘，不经网络传输
+  量子计算时代也难破解（高熵 Token）
+  可随时在 Cloudflare 面板吊销
+```
+
+## 前端方案
+
+```
+核心思想: 前端是完全可替换的 USB 模块，不塞闪存
+
+闪存 (minimize): 纯无前端，只提供 REST API
+USB (modelize):
+  ├── Vite 8 / React SPA    ← 替换整个前端体验
+  ├── 纯静态 HTML（后备）     ← 极小，可塞闪存
+  └── 模块化: 替换前端不改核心
+
+Vite 8 优势:
+  - 开发体验极快（HMR 毫秒级）
+  - 构建产物极小（tree-shaking + 压缩）
+  - 原生 ESM，比 Webpack 快 10x
+
+  React 生态:
+  - 组件复用率高
+  - 与权限表 View 层天然匹配
+  - 构建产物可部署到 R2 / Oracle 对象存储
+
+实施计划:
+  Phase 0: 核心只提供 API，前端可后接
+  Phase 1: USB 模块中提供 Vite 构建的 React SPA
+  Phase 2: 对象存储分发（R2 / Oracle S3）
+  Phase 3: 前端热替换（不重启核心）
+```
+
+
         ↓
   所有设备立即看到新权限，证书可申请该 bit
 ```
