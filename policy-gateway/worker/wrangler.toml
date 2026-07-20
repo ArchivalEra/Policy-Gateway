@@ -1,10 +1,11 @@
 name = "policy-gateway-worker"
-main = "src/index.js"
+main = "index.js"
 compatibility_date = "2025-07-01"
 
-# KV 命名空间（创建后绑定）
+# KV 命名空间（需手动创建）
 # wrangler kv:namespace create AUTH_TABLE
 # wrangler kv:namespace create PENDING_QUEUE
+# wrangler kv:namespace create RECOVERY_PINS
 [[kv_namespaces]]
 binding = "AUTH_TABLE"
 id = ""
@@ -12,3 +13,12 @@ id = ""
 [[kv_namespaces]]
 binding = "PENDING_QUEUE"
 id = ""
+
+[[kv_namespaces]]
+binding = "RECOVERY_PINS"
+id = ""
+
+# 环境变量（需手动设置）
+# wrangler secret put MANAGER_TOKEN
+[vars]
+MANAGER_TOKEN = ""
