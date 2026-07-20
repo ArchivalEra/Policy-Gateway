@@ -32,6 +32,7 @@ pub struct GcReport {
     pub removed_compromised: Vec<String>,
     pub removed_rejected: Vec<String>,
     pub removed_stale_pending: Vec<String>,
+    pub removed_unseen: Vec<String>,
     pub total_removed: usize,
     pub remaining_entries: usize,
 }
@@ -86,6 +87,8 @@ pub struct PermissionEntry {
     pub status: EntryStatus,
     pub mac: Option<String>,
     pub created_at: i64,
+    /// 最后一次访问时间（用于 GC 判断“注册后未登录”）
+    pub last_seen: Option<i64>,
 }
 
 /// 权限表 — 线程安全，支持并发读写
@@ -144,6 +147,7 @@ impl AuthTable {
             status: EntryStatus::Pending,
             mac: None,
             created_at: chrono::Utc::now().timestamp(),
+            last_seen: None,
         };
         self.pending.insert(request_id, sha256);
         self.entries.insert(sha256, entry);
@@ -210,58 +214,153 @@ impl AuthTable {
     ///   - Rejected: 超过 7 天 → 删除
     ///   - Pending: 超过 24 小时 → 删除
     ///   - Active: 永不删除（需手动吊销）
+    /// 使用预设规则集执行 GC
     pub fn gc(&mut self) -> GcReport {
+        self.gc_with_rules(&default_gc_rules())
+    }
+
+    /// 使用自定义规则集执行 GC
+    /// 每条规则是一个函数，接收 (当前表, 当前时间戳) 返回要清理的 entries
+    pub fn gc_with_rules(&mut self, rules: &[GcRule]) -> GcReport {
         let now = chrono::Utc::now().timestamp();
-        let compromised_cutoff = now - GC_RETAIN_COMPROMISED_DAYS * 86400;
-        let pending_cutoff = now - GC_RETAIN_PENDING_HOURS * 3600;
+        let mut to_remove: std::collections::HashSet<[u8; 32]> = std::collections::HashSet::new();
+        let mut removed_compromised: Vec<String> = Vec::new();
+        let mut removed_rejected: Vec<String> = Vec::new();
+        let mut removed_stale_pending: Vec<String> = Vec::new();
+        let mut removed_unseen: Vec<String> = Vec::new();
 
-        // 找出要清理的 sha256
-        let mut to_remove: Vec<[u8; 32]> = Vec::new();
-        let mut removed_compromised = Vec::new();
-        let mut removed_rejected = Vec::new();
-        let mut removed_stale_pending = Vec::new();
-
-        for (sha256, entry) in &self.entries {
-            match entry.status {
-                EntryStatus::Compromised | EntryStatus::Rejected if entry.created_at < compromised_cutoff => {
-                    let name = entry.hostname.clone();
-                    to_remove.push(*sha256);
-                    match entry.status {
-                        EntryStatus::Compromised => removed_compromised.push(name),
-                        _ => removed_rejected.push(name),
+        for rule in rules {
+            for result in (rule.fn_ptr)(self, now) {
+                if to_remove.insert(result.sha256) {
+                    // 只记录第一次发现时的原因
+                    match result.reason {
+                        GcReason::CompromisedStale => removed_compromised.push(result.hostname),
+                        GcReason::RejectedStale => removed_rejected.push(result.hostname),
+                        GcReason::PendingStale => removed_stale_pending.push(result.hostname),
+                        GcReason::NeverSeen => removed_unseen.push(result.hostname),
                     }
                 }
-                EntryStatus::Pending if entry.created_at < pending_cutoff => {
-                    let name = entry.hostname.clone();
-                    to_remove.push(*sha256);
-                    removed_stale_pending.push(name);
-                }
-                _ => {}
             }
         }
 
-        // 从 pending 映射中也移除
+        // 从 pending 映射中移除
+        let to_remove_vec: Vec<[u8; 32]> = to_remove.iter().cloned().collect();
         let pending_keys: Vec<String> = self.pending.iter()
-            .filter(|(_, sha)| to_remove.contains(sha))
+            .filter(|(_, sha)| to_remove_vec.contains(sha))
             .map(|(k, _)| k.clone())
             .collect();
         for k in pending_keys {
             self.pending.remove(&k);
         }
 
-        // 从 entries 中移除
-        for sha in &to_remove {
+        for sha in &to_remove_vec {
             self.entries.remove(sha);
         }
 
+        let total = to_remove.len();
+        let mut reasons = removed_compromised.clone();
+        reasons.extend(removed_rejected.clone());
+        reasons.extend(removed_stale_pending.clone());
+        reasons.extend(removed_unseen.clone());
+
         GcReport {
-            total_removed: to_remove.len(),
+            total_removed: total,
             remaining_entries: self.entries.len(),
             removed_compromised,
             removed_rejected,
             removed_stale_pending,
+            removed_unseen,
         }
     }
+}
+
+
+/// GC 规则结构体，可复用可组合
+pub struct GcRule {
+    pub name: &'static str,
+    pub fn_ptr: fn(&AuthTable, now: i64) -> Vec<GcResult>,
+}
+
+/// 某条规则找出的待清理结果
+pub struct GcResult {
+    pub sha256: [u8; 32],
+    pub hostname: String,
+    pub reason: GcReason,
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub enum GcReason {
+    CompromisedStale,
+    RejectedStale,
+    PendingStale,
+    NeverSeen,
+}
+
+/// 默认 GC 规则集
+pub fn default_gc_rules() -> Vec<GcRule> {
+    vec![
+        GcRule { name: "compromised-stale", fn_ptr: gc_rule_compromised_stale },
+        GcRule { name: "rejected-stale",    fn_ptr: gc_rule_rejected_stale },
+        GcRule { name: "pending-stale",     fn_ptr: gc_rule_pending_stale },
+        GcRule { name: "never-seen",        fn_ptr: gc_rule_never_seen },
+    ]
+}
+
+/// 规则 1: Compromised 超过 7 天
+fn gc_rule_compromised_stale(table: &AuthTable, now: i64) -> Vec<GcResult> {
+    let cutoff = now - GC_RETAIN_COMPROMISED_DAYS * 86400;
+    table.entries.values()
+        .filter(|e| e.status == EntryStatus::Compromised && e.created_at < cutoff)
+        .map(|e| GcResult {
+            sha256: e.sha256,
+            hostname: e.hostname.clone(),
+            reason: GcReason::CompromisedStale,
+        })
+        .collect()
+}
+
+/// 规则 2: Rejected 超过 7 天
+fn gc_rule_rejected_stale(table: &AuthTable, now: i64) -> Vec<GcResult> {
+    let cutoff = now - GC_RETAIN_COMPROMISED_DAYS * 86400;
+    table.entries.values()
+        .filter(|e| e.status == EntryStatus::Rejected && e.created_at < cutoff)
+        .map(|e| GcResult {
+            sha256: e.sha256,
+            hostname: e.hostname.clone(),
+            reason: GcReason::RejectedStale,
+        })
+        .collect()
+}
+
+/// 规则 3: Pending 超过 24 小时
+fn gc_rule_pending_stale(table: &AuthTable, now: i64) -> Vec<GcResult> {
+    let cutoff = now - GC_RETAIN_PENDING_HOURS * 3600;
+    table.entries.values()
+        .filter(|e| e.status == EntryStatus::Pending && e.created_at < cutoff)
+        .map(|e| GcResult {
+            sha256: e.sha256,
+            hostname: e.hostname.clone(),
+            reason: GcReason::PendingStale,
+        })
+        .collect()
+}
+
+/// 规则 4: 注册后 24h 内无任何访问记录
+/// 只要访问过一次（last_seen 不为 None），就保留
+fn gc_rule_never_seen(table: &AuthTable, now: i64) -> Vec<GcResult> {
+    let cutoff = now - GC_RETAIN_PENDING_HOURS * 3600; // 24h
+    table.entries.values()
+        .filter(|e| {
+            e.status != EntryStatus::Pending
+            && e.created_at < cutoff
+            && e.last_seen.is_none()
+        })
+        .map(|e| GcResult {
+            sha256: e.sha256,
+            hostname: e.hostname.clone(),
+            reason: GcReason::NeverSeen,
+        })
+        .collect()
 }
 
 #[cfg(test)]
@@ -287,6 +386,7 @@ mod tests {
             status: EntryStatus::Compromised,
             mac: None,
             created_at: chrono::Utc::now().timestamp() - 14 * 86400,
+            last_seen: None,
         };
         t.entries.insert(h, old_entry);
         assert_eq!(t.len(), 1);
@@ -310,6 +410,7 @@ mod tests {
             status: EntryStatus::Compromised,
             mac: None,
             created_at: chrono::Utc::now().timestamp() - 60,
+            last_seen: None,
         };
         t.entries.insert(h, recent);
         let report = t.gc();
@@ -327,6 +428,7 @@ mod tests {
             bitmap: 0,
             requested_bitmap: 0x01,
             status: EntryStatus::Pending,
+            last_seen: None,
             mac: None,
             created_at: chrono::Utc::now().timestamp() - 48 * 3600, // 48h 前
         };

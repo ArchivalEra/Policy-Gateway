@@ -78,6 +78,7 @@ mod tests {
             status: EntryStatus::Active,
             mac: None,
             created_at: 1234567890,
+            last_seen: None,
         };
         let sync = entry_to_sync_entry(&entry);
         assert_eq!(sync.sha256, hex::encode([1u8; 32]));
