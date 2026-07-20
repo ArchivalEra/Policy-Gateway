@@ -1,0 +1,17 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head><meta charset="UTF-8"><title>{{ signup.title }}</title></head>
+<body>
+  <h1>{{ signup.title }}</h1>
+  <form id="signup-form">
+    <label>{{ signup.hostname_label }}</label>
+    <input type="text" id="hostname" required>
+    <button type="submit">{{ signup.submit }}</button>
+  </form>
+  <div id="status"></div>
+  <script>
+    // 浏览器生成 ed25519 密钥对 + 自签名证书
+    // POST /api/signup → 轮询 /api/signup/status
+  </script>
+</body>
+</html>

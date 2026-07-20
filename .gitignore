@@ -1,18 +1,25 @@
-# Sensitive / generated / large
+# === Secrets ===
 newifi3_key
 newifi3_key.pub
 .reasonix/
+
+# === Build artifacts ===
+policy-gateway/target/
+
+# === Large binaries ===
 cloudflared-mipsle-upx
 ca-example-gateway.tar.gz
 
-# Python cache
+# === Python ===
 __pycache__/
 *.pyc
 
-# Rust build
-policy-gateway/target/
-
-# IDE
+# === IDE ===
 .vscode/
 .idea/
+*.swp
+*.swo
 
+# === OS ===
+.DS_Store
+Thumbs.db
