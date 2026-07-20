@@ -47,6 +47,60 @@ async fn main() {
         anti_abuse: Arc::new(RwLock::new(anti_abuse::AntiAbuse::new())),
     });
 
+    // 首次启动检测
+    {
+        let table = core.auth_table.read().await;
+        if table.is_empty() {
+            log::warn!("🆕 首次启动 — 权限表为空");
+            // 尝试加载 seed.json
+            let seed_paths = [
+                "/etc/config/policy-gateway.seed.json",
+                "/etc/policy-gateway/seed.json",
+                "/usr/share/policy-gateway/seed.json",
+                "./deploy/seed.json",
+            ];
+            let mut seeded = false;
+            for path in &seed_paths {
+                if let Ok(content) = std::fs::read_to_string(path) {
+                    if let Ok(seed) = serde_json::from_str::<serde_json::Value>(&content) {
+                        if let Some(entries) = seed.get("entries").and_then(|v| v.as_array()) {
+                            let mut table_w = core.auth_table.write().await;
+                            for entry in entries {
+                                if let (Some(sha), Some(hostname), Some(bitmap), Some(status)) = (
+                                    entry.get("sha256").and_then(|v| v.as_str()),
+                                    entry.get("hostname").and_then(|v| v.as_str()),
+                                    entry.get("bitmap").and_then(|v| v.as_u64()),
+                                    entry.get("status").and_then(|v| v.as_str()),
+                                ) {
+                                    if status == "active" && bitmap > 0 {
+                                        if let Ok(sha_bytes) = hex::decode(sha) {
+                                            let mut sha_arr = [0u8; 32];
+                                            if sha_bytes.len() == 32 {
+                                                sha_arr.copy_from_slice(&sha_bytes);
+                                                table_w.add_pending(sha_arr, hostname.to_string(), "__seed__".into(), bitmap as u64);
+                                                table_w.approve("__seed__", bitmap as u64);
+                                                log::info!("   ✅ 预置根证书: {} (bitmap={:x})", hostname, bitmap);
+                                                seeded = true;
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                            if seeded {
+                                log::info!("   📋 已从 {} 加载 {} 个条目", path, entries.len());
+                            }
+                        }
+                    }
+                }
+            }
+            if !seeded {
+                log::warn!("   ⚠️  未找到 seed.json");
+                log::warn!("   首次使用请运行: policy-gateway init");
+                log::warn!("    或参考 deploy/bootstrap.sh 生成根证书");
+            }
+        }
+    }
+
     // 前台: HTTP API
     let app = Router::new()
         .merge(modules::portal::portal_router(core.clone()));
@@ -107,6 +161,20 @@ async fn cli_mode(args: &[String]) {
             }
         },
         Some("vm") => { vm::cli(&args[1..]); }
+        Some("init") => {
+            println!("🔐 policy-gateway 首次设置");
+            println!();
+            println!("这个命令会生成根证书和初始配置。");
+            println!("如果你没有 deploy/seed.json，请先运行 bootstrap.sh。");
+            println!();
+            println!("用法: policy-gateway init");
+            println!("      然后访问 http://<router-ip>:8443/manager?token=<token>");
+            println!();
+            println!("首次启动说明:");
+            println!("  1. 确保 seed.json 和根证书已在 /etc/config/ 目录");
+            println!("  2. 启动服务后访问 /manager");
+            println!("  3. 用根证书登录，即可审批其他设备");
+        }
         Some("module") => {
             println!("📦 模块系统 v0.1");
             println!("  核心: portal（认证门户，必需）");
@@ -115,7 +183,7 @@ async fn cli_mode(args: &[String]) {
             println!("  对象存储: Worker R2 / Oracle S3 兼容");
         }
         _ => {
-            eprintln!("用法: policy-gateway <perm|module>");
+            eprintln!("用法: policy-gateway <perm|module|init>");
             std::process::exit(1);
         }
     }
