@@ -7,64 +7,57 @@
 
 ---
 
-## 一、两个项目
+## 一、架构方案
+
+### 上网控制：不碰 iptables，用接入门户（Captive Portal）
+
+之前的设计是用 iptables 每个设备一条规则来拦网——这会让 MT7621 的**硬件 NAT 加速失效**，NAT 性能从 ~900Mbps 掉到 ~300Mbps。
 
 ```
-┌─────────────────────────────────────────────────────────────┐
-│              ca-backend（手机本地 Web 程序）                   │
-│                                                              │
-│  本质: 一个浏览器就能用的独立 CA 管理程序                      │
-│                                                              │
-│  启动: Termux 启动 HTTP 服务器 → 手机浏览器打开               │
-│        http://localhost:8443 → 输入私钥口令解锁                │
-│        → 进入 Web 管理界面                                   │
-│                                                              │
-│  页面 (浏览器里操作):                                         │
-│    /manager   → 审批证书申请、吊销、恢复连接证书               │
-│    /ca/sign   → 上传 CSR → 一键签名 → 下载证书                │
-│    /ca/status → 查看已签发证书列表、过期时间                   │
-│    /ca/export → 导出根证书、配置                              │
-│                                                              │
-│  API (供路由器/Worker 调用):                                  │
-│    POST /api/sign   ← 收 CSR → 出证书                         │
-│    POST /api/revoke ← 吊销证书                                │
-│    GET  /api/ca.crt ← 取根证书                                │
-│    GET  /api/status ← 查服务状态                              │
-│                                                              │
-│  安全: ca.key AES-256-CBC (PBKDF2) 加密存储                   │
-│        启动时口令解锁，用完清除内存明文                        │
-│        备选: Android KeyStore 硬件绑定                         │
-│  依赖: openssl / rustls + HTTP 服务器                         │
-│  部署: Termux 自启脚本, 开机监听 localhost:8443                │
-└─────────────────────────────────────────────────────────────┘
-                              ↑ 只转发 CSR/证书
-                              ↓
-┌─────────────────────────────────────────────────────────────┐
-│                  policy-gateway（路由器 / Worker）             │
-│                                                              │
-│  管: mTLS 门卫 + 权限表 + 上网控制                             │
-│                                                              │
-│  页面:                                                        │
-│    /signup      证书申请（提交主机名 → 管理员审批）              │
-│    /manager     审批面板 + 恢复连接证书                         │
-│    /permissions 权限表查看                                     │
-│                                                              │
-│  内部:                                                        │
-│    ┌──────────┐  ┌──────────┐  ┌──────────┐                  │
-│    │ mTLS 验证 │  │ 策略引擎  │  │ iptables  │                  │
-│    │ (rustls)  │  │ (位图查表)│  │ (放行WAN)│                  │
-│    └──────────┘  └──────────┘  └──────────┘                  │
-│    ┌──────────┐  ┌──────────┐                                 │
-│    │ 权限表    │  │ 同步引擎  │                                 │
-│    │ (bitmap) │  │ (↔Worker)│                                 │
-│    └──────────┘  └──────────┘                                 │
-│                                                              │
-│  部署: 路由器 Rust 单二进制（mipsel musl, UPX）               │
-│        Cloudflare Workers（公网节点）                          │
-└─────────────────────────────────────────────────────────────┘
+旧方案: iptables DROP per device → HW NAT 失效 ❌
+新方案: 接入门户（Captive Portal）→ HW NAT 保留 ✅
 ```
 
----
+工作流：
+
+```
+设备连 WiFi / 插网线
+  ├── DHCP 给 IP（所有设备都给）
+  ├── DNS 正常解析（不影响日常使用）
+  │
+  ├── 设备发起第一个 HTTP 请求
+  │   → 路由器 nftables 一条规则 REDIRECT 到 captive portal
+  │   → portal 检查: 这个设备有没有 connector 证书?
+  │      ├── 有 → 写入 flowtable 白名单 → 后续包走 HW NAT 🚀
+  │      └── 无 → 显示 /signup 页面
+  │
+  ├── HTTPS 请求同理
+  │   → REDIRECT 443 → 本地自签证书 → 提示用户接受例外
+  │
+  └── 已授权的设备: flowtable bypass，完全不经过 CPU
+```
+
+只有**一条** nftables 规则，不配硬件 NAT 冲突。已授权的连接直接走 flow offload。
+
+### 模块化架构
+
+```
+闪存 (10MB) — 只放核心         USB (32GB~1TB) — 放模块和数据
+┌──────────────────────┐      ┌──────────────────────────────┐
+│ policy-gateway 核心   │      │ /mnt/usb/modules/             │
+│   (Rust 静态二进制)   │      │ ├── web-ui/     → 前端界面   │
+│                       │      │ ├── compute/    → 算力调度   │
+│  功能:                │      │ ├── storage/    → 文件管理   │
+│  ├── mTLS 门卫        │      │ ├── vm/         → 版本快照   │
+│  ├── 权限表           │      │ └── ...                      │
+│  ├── captive portal   │      │                              │
+│  ├── flowtable 管理   │      │ /mnt/usb/data/               │
+│  ├── 证书 API         │      │ ├── www/        → 前端源码   │
+│  └── 模块加载器       │      │ ├── compute/    → 算力任务   │
+└──────────────────────┘      │ └── backup/     → 快照归档   │
+                               └──────────────────────────────┘
+```
+
 
 ## 二、四种证书
 
@@ -185,6 +178,35 @@ device (bit 2) ── 谁执行: Worker 调度器
   0xFF = 0b11111111 -> 全部 8 个权限
 ```
 
+### 权限表生命周期与垃圾回收
+
+权限表不是无限膨胀的。定期 GC 清理过期条目：
+
+```
+GC 规则:
+  Compromised/Rejected 条目 → 7 天后自动删除
+  Pending 申请              → 24 小时后自动删除
+  Active 条目               → 永不自动删除（需手动吊销）
+
+CLI 命令:
+  policy-gateway perm gc      # 手动触发 GC
+  policy-gateway perm list    # 列出所有条目
+  policy-gateway perm stats   # 统计信息
+
+定时 GC:
+  后台每 1 小时自动执行一次
+  只有清理了条目才打日志，安静运行
+```
+
+权限可扩展性:
+
+```
+permission_catalog() 是唯一的权限定义源
+  新增权限: 追加一行 (bit, 名称, 可申请?, 仅根?)
+  旧证书不受影响，新申请自动看到新权限
+  删除权限: GC 不会回收 bit 位（bit 位置不变，避免移位混乱）
+```
+
 ### 查权限
 
 ```
@@ -274,29 +296,29 @@ POST /api/permissions/restore-bypass
 ```
 设备插网线 / 连 WiFi
   │
-  ├── DHCP 获取 IP
-  ├── 所有 WAN 流量初始 DROP（iptables）
-  ├── DNS 劫持: http → 302 /signup；https → REDIRECT 443 → 本地
+  ├── DHCP 获取 IP（所有设备都给，不拦）
+  ├── DNS 正常解析（不影响 localsend 之类局域网服务）
   │
-  ├── 有浏览器的设备 → 自动跳转 /signup → 填主机名 → 提交
+  ├── 设备发起第一个 HTTP/HTTPS 请求
+  │   → nftables REDIRECT（一条规则）
+  │   → captive portal 检查:
+  │      ├── 已有 connector 证书? → flowtable 放行 → HW NAT ✅
+  │      └── 没有证书? → 显示 /signup 页面
   │
-  ├── 无 head 设备 → curl / MCU 直接调 API:
-  │     POST /api/signup
-  │     { "hostname": "sensor-01",
+  ├── 有头设备 → 浏览器填主机名 → 提交
+  ├── 无头设备 → curl / MCU:
+  │     POST /api/signup { "hostname": "sensor-01",
   │       "cert": "-----BEGIN CERTIFICATE-----..." }
   │
-  ├── 所有客户端走同一入口 → 审批队列 (pending)
+  ├── 所有客户端同一入口 → 审批队列 (pending)
   │
   ├── 管理员在 /manager 点同意 → 写入权限表
   │
-  ├── 设备轮询:
-  │     GET /api/signup/status?id=<request_id>
-  │     返回 approved → 开始心跳 → 上网
-  │     返回 pending → 继续等
+  ├── 设备轮询 → 返回 approved → 心跳开始
   │
   └── 上网后:
-      每 60 秒发心跳 (复用 mTLS 会话) → 维持 iptables
-      超时 180 秒 → 清除规则 → 断网
+      每 60 秒发心跳 → 维持 flowtable 条目
+      心跳超时 180 秒 → 清除 flowtable → captive portal 重新拦截
 ```
 
 ---
@@ -535,117 +557,101 @@ DNS 劫持对 HTTPS 请求无效（浏览器会报证书错误）:
 
 
 
-## 八-乙、版本管理与回滚
+## 八-乙、模块管理系统（VM — Version & Module Manager）
 
-### 证书与权限的可扩展性
-
-目前定义了 7 个权限位（bit 0-6），而位图使用 `u64` 存储，理论可支持 **64 个权限**，余量 57 个。
-
-四种证书类型本质上是预定义的 **位图模板**：
-
-| 证书类型 | 位图 | 可扩展？ |
-|---------|------|---------|
-| 根证书 | 全部 bit=1 | — |
-| 管理证书 | bit0(connector)+bit1(admin) | 可加 |
-| 连接证书 | bit0(connector) | 可加 |
-| 设备证书 | bit0+bit2(device) | 可加 |
-
-新增权限只需在模板末尾追加 bit，旧证书不受影响。**完全可扩展。**
-
-### 版本管理程序（"不死鸟"模式）
-
-类似 ImmortalWrt 的双分区固件保护，对权限表和配置做 **快照 + 原子切换 + 自动回滚**。
+VM 不再是单纯的版本回滚。它是整个系统的**模块生命周期 + 能力分发系统**。
 
 ```
-命令: vm (version manager)
-
-vm snapshot [name]          ← 创建当前状态快照 (需 admin)
-vm list                     ← 列出所有快照 (任何用户)
-vm status                   ← 当前版本信息 (任何用户)
-vm rollback <id>            ← 回滚到指定快照 (需 admin + 二次确认)
-vm diff <id1> <id2>         ← 对比两个快照差异 (任何用户)
-vm gc                       ← 清理旧快照 (需 admin)
-
-安全:
-  - snapshot/rollback/gc 均需 mTLS + admin 权限
-  - rollback 需要二次确认 (非 root 不可执行)
-  - rollback 时保留当前 restore_counts，不从快照恢复
-  - manager_token_hash 在回滚时保留当前值，不从快照覆盖
-  - 快照使用 HMAC-SHA256 签名 (密钥派生自 ca.key)，防篡改
+VM 管理一切"可以独立装卸的东西":
+  ├── 核心模块 (root 专属)        ← 认证、权限表、portal
+  ├── 业务模块 (admin 各自管理)   ← 存储、算力、前端界面
+  └── 沙盒应用 (device 之间交互)  ← MCU 上的小程序
 ```
 
-### 快照内容
+### 分级权限体系
 
 ```
-快照 (存储为单个 JSON 文件 + HMAC 签名):
-  {
-    "version": 42,
-    "created_at": "2026-07-20T15:00:00Z",
-    "reason": "升级前备份",
-    "hmac": "sha256$abc123...",              ← HMAC 防篡改，密钥派生自 ca.key
-    "data": {
-      "permission_table": [{ sha256, hostname, bitmap, status, mac }, ...],
-      "prl": [{ serial, policy, revoked_at }, ...],
-      "config": { ... }
-    }
-  }
+root (你)
+  ├── VM 整个系统：安装/卸载/禁用任何模块
+  ├── 毙掉任何管理员或设备的模块（一键 kill）
+  ├── 批准新的权限类型申请
+  └── 不受任何限制
 
-不回滚的字段 (保留当前值):
-  - restore_counts: 回滚时不覆盖，防止绕过每日恢复上限
-  - manager_token_hash: 回滚时保留，防止旧 token 重新生效
+admin (你信得过的人)
+  ├── VM 自己的模块命名空间（互不干涉）
+  │   └── admin A 的模块 → admin B 看不到、管不着
+  ├── 在自己的沙盒内自由组合模块
+  └── 可以申请新增权限类型（由 root 审批）
+
+device (单片机/算力节点)
+  ├── 持有连接证书 → 有权上网
+  ├── 持有设备证书 → 有权被委派计算任务
+  ├── 沙盒内可以运行微模块（受限）
+  └── 一个设备的微模块可以与另一个设备的微模块通信
+      └── 经策略引擎鉴权 → 权限表有 "interconnect" bit
 ```
 
-### 原子切换 + 自动回滚
+### 权限列表动态增长
 
 ```
-应用新配置:
-  ① PREPARE: 写新快照 + 标记 pending
-  ② APPLY:   切换到新配置
-  ③ COMMIT:  运行健康检查 (mTLS 可达? 心跳正常?)
-      ├── 成功 → 标记 active，完成
-      └── 失败 → 自动回滚到上一个 active 快照，上报错误
+不是静态的 7 个 bit。管理员可以提交新型权限申请:
 
-回滚安全策略:
-  - restore_counts 保留当前值（不覆盖）
-  - manager_token_hash 保留当前值（不覆盖）
-  - 如果当前快照包含吊销操作，回滚时发出警告
-  - 回滚需二次确认（root 确认 + 键入 yes）
-
-不死鸟保障:
-  每次变动前自动创建 pre-update 快照
-  回滚不依赖外部系统（路由器本地存最近 5 个快照）
-  Worker KV 存远程备份（可作为跨设备回滚源）
+  admin 提交: {"name": "interconnect:udp:6000-7000", "description": "设备间 UDP 通信"}
+        ↓
+  root 在 /manager 审批 → 追加到 permission_catalog → 分配新 bit
+        ↓
+  所有设备立即看到新权限，证书可申请该 bit
 ```
 
-### 存储位置
+位图仍然是 Hex 变长，新 bit 追加到末尾，旧证书不受影响。
+
+### 模块隔离模型
 
 ```
-本地（路由器 /tmp 或闪存）:
-  /etc/vm/snapshots/v-{id}.json     ← 快照文件
-  /etc/vm/current -> v-{id}.json    ← 当前版本软链接
+root 的命名空间:     /modules/system/
+  ├── core-auth
+  ├── captive-portal
+  └── permission-catalog
 
-USB 硬盘:
-  /mnt/usb/backup/vm/               ← 持久归档
+admin A 的命名空间:  /modules/admins/a/
+  ├── storage-service
+  └── compute-dispatcher
 
-Worker KV:
-  vm_snapshots: { version → snapshot }
+admin B 的命名空间:  /modules/admins/b/
+  └── web-ui
+
+device 沙盒:        /sandbox/<device_serial>/
+  ├── sensor-reader
+  └── relay-ctl
+
+cross-device 通信:
+  device-A 的 sensor-reader → 策略引擎查 "interconnect" bit
+    → 通过 → 转发到 device-B 的 relay-ctl
+    → 拒绝 → 403
 ```
 
-### 与同步的关系
+### 仍然双轨制
 
-同步版本号（`SyncPacket.version`）就是版本管理的版本号。
-双向同步时采用 last-write-wins，与快照机制共用同一套版本递增序列。
+路由器和 Worker 同步权限表 + 模块清单。任一活着，整个系统可用。
 
-### 关键操作认证
+```
+路由器: 管理本地模块 + captive portal + 策略执行
+Worker: 管理公网模块 + 跨设备路由 + 权限审批代理
+```
 
-| 操作 | 认证要求 |
-|------|---------|
-| vm snapshot | mTLS + admin 权限 |
-| vm rollback | mTLS + admin + root 二次确认 |
-| vm gc | mTLS + admin 权限 |
-| vm list / status / diff | 任何用户（本地 shell 或 mTLS）|
+### 与旧 VM 的关系
 
+```
+旧 "vm rollback" → 新 "模块版本切换"
+  每个模块独立版本:
+    core-auth@v1.2 → rollback 到 v1.1
+    storage-service@v3.0 → rollback 到 v2.8
+    不影响其他模块
 
+旧 "vm snapshot" → 新 "全局快照"
+  root 可以打全局快照，包含所有模块版本
+  恢复快照 = 一键还原所有模块到指定版本
+```
 
 
 ## 九、极限压缩部署（路由器）
