@@ -677,7 +677,7 @@ Phase 2.7🚀  VM install + /help + MCU + 全路由   ✅
 
 ```
 Phase 2.8    Worker 镜像 — 路由器离线时接管 /manager+/signup   🔜
-Phase 3.0    沙盒 + 算力委派                                    📋
+Phase 3.0    nftables 事件驱动 + QUIC 兼容                      📋（本期）
 ```
 
 ### 搁置
@@ -688,6 +688,153 @@ Phase 3.0    沙盒 + 算力委派                                    📋
 - 权限动态增长
 - 位图编辑器
 - 心跳超时断网（与 MIPS 理念相悖）
+```
+
+---
+
+## 十二、Phase 3.0 规划 — nftables 事件驱动 + QUIC 兼容
+
+### 当前架构问题
+
+```
+所有 HTTP/HTTPS 请求 → nftables REDIRECT → policy-gateway :8443
+                                        → 检查权限
+                                        → 允许: nftables 添加 authorized_ips
+                                        → 拒绝: 返回 302 /signup
+
+问题:
+  ① 每个新连接都经过用户态 portal（即使已被拒绝）
+  ② QUIC (UDP 443) → 无法被 REDIRECT（REDIRECT 仅 TCP）
+  ③ 流量的首包必须经过用户态，增加延迟
+```
+
+### 目标架构（事件驱动）
+
+```
+权限变更事件 → nftables 规则更新 | 流量完全不经过用户态 |
+                                   
+  connector bit 被授予:
+    → nftables add element ip pg_pre authorized_ips { 192.168.1.100 }
+    → 后续该设备的所有流量 → 硬件转发 (flow offload)
+    → 完全绕过 policy-gateway 用户态
+
+  connector bit 被撤销:
+    → nftables delete element ip pg_pre authorized_ips { 192.168.1.100 }
+    → nftables add element ip pg_pre unauthorized_ips { 192.168.1.100 }
+    → 该设备的下一个 SYN → 触发 ct状态 → redirect 到 portal
+```
+
+### 详细设计
+
+```
+链结构（双表方案保持不变，内部优化）:
+
+table inet pg_pre {
+  set authorized_ips { type ipv4_addr; flags dynamic; }
+  set unauthorized_ips { type ipv4_addr; flags dynamic; timeout 5m; }
+  
+  chain forward {
+    type filter hook forward priority -1;
+    
+    # 已授权 → 直接放行（触发 flow offload）
+    ip saddr @authorized_ips accept
+    
+    # 未授权（且在超时期内）→ 跳转到 portal
+    ip saddr @unauthorized_ips jump captive_portal
+    
+    # 未知设备 → 首次 HTTP 请求跳 portal
+    tcp dport { 80, 443 } jump redirect_portal
+  }
+}
+
+优化点:
+  ① authorized_ips 更新 → 只改 set，不重建整条链（无连接中断）
+  ② unauthorized_ips 带 timeout → 5 分钟后自动过期，不用手动清理
+  ③ flow offload: 首包匹配后，后续包完全走硬件，CPU 0 干预
+```
+
+### QUIC (UDP 443) 处理
+
+```
+QUIC 问题:
+  REDIRECT 只支持 TCP。QUIC 是 UDP，不能 redirect。
+  
+  方案 A (推荐): 未授权设备直接 DROP UDP 443
+    → 客户端自动回退到 TCP 443 → 走正常 portal 流程
+    → 优点: 极其简单，一行 nftables 规则
+    → 缺点: QUIC 无法使用（授权后放行）
+    
+  方案 B: TPROXY + socat 转发
+    → nftables tproxy to :8443 (需要额外策略路由)
+    → socat 处理 UDP 转发
+    → 优点: 保留 QUIC
+    → 缺点: 复杂，MIPS 性能差
+    
+  方案 C: 在 authorized_ips 中的设备 → UDP 443 放行
+    → 其他设备 → UDP 443 drop
+    → 授权后自动获得 QUIC 能力
+    → 推荐方案，与 TCP 一致
+```
+
+### ImmortalWrt / OpenWrt 社区现有方案调查
+
+```
+现有方案:
+  - luci-app-parentcontrol: 基于 MAC 的家长控制，用 iptables time 模块
+    → 太简单，不支持证书认证
+  - adblock / simple-adblock: DNS 拦截
+    → 完全不同的领域
+  - mbedOS: 已内置，可利用
+  - 内核 >= 5.15: nftables + flowtable 已支持 HW offload (MT7621)
+    → mtk_flow_offload.ko (MediaTek 专用)
+    → 可以卸载 TCP/UDP 流量到硬件引擎
+
+结论: 没有直接可用的开源实现。
+      现有功能最接近的是 luci-app-parentcontrol，但基于 MAC 不够安全。
+      policy-gateway 的做法在社区中没有替代品。
+```
+
+### 事件驱动集成点
+
+```
+权限变更事件 (已经实现):
+
+  Rust 代码                        nftables
+  ─────────                       ────────
+  approve(sha256, bitmap)
+    → connector bit 变化?
+      → 获取设备 IP → nft add element
+      
+  reject(sha256)
+    → nft delete element
+    → nft add element @unauthorized_ips { IP timeout 5m }
+    
+  gc() 清理条目
+    → 批量同步 nftables 集合
+
+  注意: IP 获取需要从 DHCP 租赁文件或 arp 表。
+        OpenWrt: /tmp/dhcp.leases → hostname → IP 映射
+        arp -n → IP → MAC 映射
+```
+
+### CLI 命令
+
+```
+policy-gateway nft sync     → 将权限表全量同步到 nftables
+policy-gateway nft status   → 显示当前 nftables 集合内容
+policy-gateway nft flush    → 清空 nftables 集合（重置）
+```
+
+### QUIC 测试
+
+```
+# 在 authorized 设备上:
+curl --http3 https://example.com  (需要 curl 支持 HTTP/3)
+# 或
+chrome://flags/#enable-quic
+
+# 预期: 授权后 QUIC 正常工作
+#       未授权时 QUIC 请求超时 → fallback to TCP
 ```
 
 ---
@@ -707,3 +854,4 @@ Phase 3.0    沙盒 + 算力委派                                    📋
 | 同步 | 双向，带时间戳合并，任一活着权限表就可见。Worker 离线也可派计算 |
 | 沙盒 | 宿主目录隔离，共享库，不建容器 |
 | 许可证 | AGPL-3.0 |
+| nftables 策略 | 事件驱动，仅权限变更时更新 set。流量不经过用户态。QUIC 用 DROP fallback 到 TCP。|
