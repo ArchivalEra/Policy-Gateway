@@ -1017,3 +1017,159 @@ TLS 1.3  负责: 传输层 — 授权设备用 0-RTT 免认证重连
   ③ 权限撤销 → nftables 删除 IP → 设备下次连接被 nftables 拦截
      → 即使有 TLS ticket 也无法联网（网络层被拦）
 ```
+
+---
+
+## 十四、network-mode-extra 模块规划 — 协议强制 + TLS 模式锁定
+
+### 设计目标
+
+> 一个极轻量的 nftables + rustls 策略模块，运行在最小程序中。
+> 不解析包体，不维护状态，不引入运行时开销。
+
+```
+功能:
+  ├── 协议强制: TCP-only / UDP-only / QUIC-only / 全放行
+  ├── TLS 模式: 强制 0-RTT / 强制 1-RTT / 禁止不加密连接
+  └── 例外列表: 某些设备/端口不受协议限制
+
+实现位置:
+  policy-gateway/src/modules/network_mode.rs
+  作为 modelize feature 编译，不增加 minimize 核心体积
+```
+
+### 协议强制（nftables 层，零开销）
+
+```
+原理: 在 pg_pre forward 链中添加策略规则，匹配后直接 accept/drop。
+
+实现的 nftables 规则集:
+
+  # TCP-only 模式 (默认)
+  chain forward {
+    # 允许 TCP
+    ip protocol tcp accept
+    # 允许 ICMP (ping 等)
+    ip protocol icmp accept
+    # 允许已建立的连接 (DNS 等走 UDP 的响应)
+    ct state { established, related } accept
+    # 其他所有协议 DROP
+    drop
+  }
+
+  # QUIC-only 模式
+  chain forward {
+    udp dport 443 accept
+    tcp dport 443 accept  # QUIC 回退
+    ct state { established, related } accept
+    drop
+  }
+
+  # 纯 QUIC 模式 (极大减少攻击面)
+  chain forward {
+    udp dport 443 accept
+    drop
+  }
+
+切换延迟: 一次 nftables 命令行调用，< 1ms。
+无运行时开销: 规则匹配在硬件中完成 (flow offload)。
+```
+
+### TLS 模式锁定（rustls 层）
+
+```
+原理: 修改 ServerConfig 的兼容性设置，限制允许的 TLS 版本/模式。
+
+  # 允许的 TLS 版本
+  当前: TLS 1.2 + TLS 1.3 (默认)
+  锁定 1-RTT: 禁用 TLS 1.2，仅 TLS 1.3 (1-RTT 握手)
+  锁定 0-RTT: TLS 1.3 + max_early_data_size > 0
+
+  # rustls 实现
+  ```rust
+  // 当前配置
+  let mut config = rustls::ServerConfig::builder()
+      .with_safe_defaults()  // TLS 1.2 + 1.3
+  
+  // 仅 TLS 1.3 (强制 1-RTT)
+  let mut config = rustls::ServerConfig::builder()
+      .with_protocol_versions(&[&rustls::version::TLS13])
+      .unwrap()
+  
+  // TLS 1.3 + 0-RTT
+  let mut config = rustls::ServerConfig::builder()
+      .with_protocol_versions(&[&rustls::version::TLS13])
+      .unwrap()
+  config.max_early_data_size = 0x10000;  // 64KB 0-RTT
+  ```
+
+  模块只在 modelize 编译时启用此配置。
+  minimize 编译: 保持默认 TLS 1.2 + 1.3 兼容。
+```
+
+### 性能评估 (MT7621 / MIPS)
+
+```
+方案                   开销                   适用场景
+────────────────────────────────────────────────────────────
+nftables 协议过滤      零 (HW offload)        协议强制
+TLS 1.3 only           -1 次协商往返         高安全性环境
+TLS 1.3 + 0-RTT       零 (首包即数据)        内网低延迟
+纯 QUIC                UDP 协议             IoT/实时通信
+
+MIPS 压力:
+  nftables 规则 → 硬件转发 (mtk_flow_offload) → CPU 0%
+  TLS 1.3 完整握手 → 约 200μs (Ed25519) → 可接受
+  0-RTT → 约 50μs → 推荐内网场景
+```
+
+### CLI 接口
+
+```
+policy-gateway network-mode tcp            # TCP-only
+policy-gateway network-mode udp            # UDP-only
+policy-gateway network-mode quic           # QUIC-only
+policy-gateway network-mode tls13          # 强制 TLS 1.3 (1-RTT)
+policy-gateway network-mode tls13-0rtt    # 强制 TLS 1.3 + 0-RTT
+policy-gateway network-mode status         # 查看当前模式
+policy-gateway network-mode reset          # 恢复默认
+```
+
+### 例外列表
+
+```
+某些设备/服务需要特殊处理:
+
+  # DNS 需要 UDP 53 (即使 TCP-only 模式)
+  chain forward {
+    udp dport 53 accept                      # 例外: DNS
+    ip saddr @dns_servers udp dport 53 accept # 例外: 特定 DNS
+    ...
+  }
+
+例外通过 nftables 集合管理，支持动态增删:
+  nft add element ip pg_pre dns_servers { 192.168.1.1 }
+  nft delete element ip pg_pre dns_servers { 192.168.1.1 }
+```
+
+### 与 Phase 3.0 / 3.1 的关系
+
+```
+Phase 3.0: 事件驱动 nftables 框架 ← network-mode-extra 依赖此框架
+Phase 3.1: TLS 1.3 Session Ticket  ← network-mode-extra 锁定的 TLS 模式
+Phase 3.2: network-mode-extra 模块  ← 协议 + TLS 策略一体化
+
+三层叠加后:
+  ① 设备首次连接 → 触发 nftables → 跳转到 portal
+  ② 授权后 → IP 加入 authorized_ips → TLS ticket 签发
+  ③ network-mode-extra 确保只有允许的协议能通过
+```
+
+### 许可
+
+```
+network-mode-extra 作为可选模块 (modelize feature):
+  minimize:  +0 bytes (不编译)
+  modelize:  +~50kB (nftables 规则管理器 + CLI)
+  运行时:    零 (规则在 HW 中匹配)
+```
