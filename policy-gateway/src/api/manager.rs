@@ -21,7 +21,7 @@ static MANAGER_TOKEN: Lazy<String> = Lazy::new(|| {
     std::env::var("MANAGER_TOKEN").expect("MANAGER_TOKEN 环境变量未设置，启动失败")
 });
 
-fn check_auth(token: &str) -> bool {
+pub fn check_auth(token: &str) -> bool {
     token == *MANAGER_TOKEN
 }
 

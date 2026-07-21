@@ -139,11 +139,15 @@ async fn handle_self_signed(
 }
 
 fn parse_role(requested: Option<&str>) -> &'static str {
-    match requested {
-        Some("FF") | Some("ff") => "root",
-        Some(h) if u64::from_str_radix(h, 16).unwrap_or(0) & (1 << 1) != 0 => "admin",
-        Some(h) if u64::from_str_radix(h, 16).unwrap_or(0) & (1 << 2) != 0 => "device",
-        _ => "connector",
+    // 用 parse_requested_bitmap 过滤后的位图判断角色
+    // 确保 admin/root 不可通过申请获得
+    let bitmap = parse_requested_bitmap(requested);
+    if bitmap & (1 << crate::auth::BIT_ADMIN) != 0 {
+        "connector"  // admin bit 被过滤后不可能为真，降级到 connector
+    } else if bitmap & (1 << crate::auth::BIT_DEVICE) != 0 {
+        "device"
+    } else {
+        "connector"
     }
 }
 
@@ -174,9 +178,11 @@ mod tests {
     use super::*;
     #[test]
     fn test_parse_role() {
+        // admin/root bits are filtered by parse_requested_bitmap
         assert_eq!(parse_role(Some("01")), "connector");
-        assert_eq!(parse_role(Some("03")), "admin");
-        assert_eq!(parse_role(Some("FF")), "root");
+        assert_eq!(parse_role(Some("05")), "device");
+        assert_eq!(parse_role(Some("03")), "connector");  // admin filtered -> connector
+        assert_eq!(parse_role(Some("FF")), "device");  // "FF" has device bit   // root filtered -> connector
     }
     #[test]
     fn test_parse_invalid() { assert!(parse_and_validate_cert("bad").is_none()); }
