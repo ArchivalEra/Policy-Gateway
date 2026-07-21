@@ -24,9 +24,27 @@ pub fn portal_router(state: std::sync::Arc<CoreState>) -> Router {
         .route("/api/manager/pending", get(crate::api::manager::handle_pending_json))
         .route("/api/help", get(crate::api::help::handle))
         .route("/signup", get(crate::api::signup::handle_form))
+        .route("/", get(root_handler))
         .with_state(state)
 }
 
 pub fn portal_name() -> &'static str {
     "core-portal — 认证门户（必需）"
+}
+
+/// GET / — 简洁首页
+pub async fn root_handler() -> axum::response::Html<&'static str> {
+    axum::response::Html(r#"<!DOCTYPE html>
+<html lang="zh"><head><meta charset="UTF-8"><title>policy-gateway</title>
+<style>body{font-family:sans-serif;max-width:600px;margin:auto;padding:40px;text-align:center}
+a{display:block;padding:12px;margin:8px;background:#06c;color:#fff;border-radius:6px;text-decoration:none;font-size:18px}
+a:hover{background:#058}</style></head>
+<body>
+<h1>🔐 policy-gateway</h1>
+<p>证书管理网关</p>
+<a href="/signup">📜 申请证书</a>
+<a href="/manager">🔑 管理面板</a>
+<a href="/permissions">📋 权限表</a>
+<a href="/api/help">📖 接入教程</a>
+</body></html>"#)
 }
