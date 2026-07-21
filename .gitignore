@@ -28,6 +28,7 @@ __pycache__/
 .DS_Store
 Thumbs.db
 # Toolchain (download by setup script, not tracked in git)
+policy-gateway/.toolchain/
 policy-gateway/mipsel-linux-musl-cross/
 policy-gateway/zig-install/
 policy-gateway/zig-linux-*/
@@ -56,3 +57,4 @@ policy-gateway/deploy/seed.json
 pre-do.sh
 # pre-do 本地进度
 progress/
+.rustup-tmp\n.cargo-tmp
