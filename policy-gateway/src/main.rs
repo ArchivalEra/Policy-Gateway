@@ -16,6 +16,7 @@ mod recovery;
 mod anti_abuse;
 pub mod vm;  // VM — 始终包含，核心组件
 pub mod modules;
+pub mod store;  // redb 持久化
 
 /// 共享状态别名（api 模块中使用）
 pub type AppState = modules::CoreState;

@@ -32,6 +32,9 @@ pub struct SignupRequest {
     pub hw_platform: Option<String>,
     /// 持久设备 ID（客户端生成的随机 UUID，保护隐私）
     pub device_id: Option<String>,
+    /// 公钥 Hex（MCU 友好 — 直接发送 Ed25519/ECDSA 公钥 hex）
+    /// 服务器会将其包装为证书并用 CA 签名。无需 CSR！
+    pub pubkey: Option<String>,
 }
 
 #[derive(Serialize)]
