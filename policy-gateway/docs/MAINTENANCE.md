@@ -1,4 +1,4 @@
-# Phase 1.5 — 项目维护手册
+# Phase 2.5 — 项目维护手册
 
 > 项目复杂度开始指数上升，没有规矩不成方圆。
 > 本文档覆盖: 维护工作流 / Agent 交接 / 实验规章 / 代码规范
@@ -10,7 +10,7 @@
 ### 分支策略
 
 ```
-main        ← Phase 0.5 稳定版，受 pre-push 保护
+main        ← 最新稳定版，受 pre-push 保护
 phase1.x    ← Phase 1 开发分支
 feature/*   ← 功能分支（可选）
 ```
@@ -108,7 +108,7 @@ policy-gateway 是什么?
 
 代码在哪?
   单仓库 ArchivalEra/Worker-Router-Gateway
-  main — Phase 0.5 稳定
+  main — 最新稳定
   phase1.x — 开发中
 
 怎么编译?
