@@ -1020,17 +1020,22 @@ TLS 1.3  负责: 传输层 — 授权设备用 0-RTT 免认证重连
 
 ---
 
-## 十四、network-mode-extra 模块规划 — 协议强制 + TLS 模式锁定
+## 十四、network-mode-extra 模块规划 — 协议优先 + TLS 模式偏好
 
 ### 设计目标
 
-> 一个极轻量的 nftables + rustls 策略模块，运行在最小程序中。
-> 不解析包体，不维护状态，不引入运行时开销。
+> 一个极轻量的网络优化模块。不阻断任何协议，只做偏好提示。
+> 核心原则："prefer, never force" — 即使最优协议不可用，回退路径永远畅通。
 
 ```
 功能:
-  ├── 协议强制: TCP-only / UDP-only / QUIC-only / 全放行
-  ├── TLS 模式: 强制 0-RTT / 强制 1-RTT / 禁止不加密连接
+  ├── 协议控制: auto / tcp-only / udp-only / quic-only (force)
+  │              prefer-tcp / prefer-udp / prefer-quic (soft)
+  ├── TLS 模式: prefer-0rtt / prefer-1rtt / prefer-tls13
+  │              强制 tls13 / 强制 0rtt (force)
+  ├── 优先级标记: DSCP tagging (对 QoL 敏感流量设高优先级)
+  └── 回退保障: force 模式下阻断非偏好协议
+                 prefer 模式下仅优化，不阻断
   └── 例外列表: 某些设备/端口不受协议限制
 
 实现位置:
@@ -1126,13 +1131,17 @@ MIPS 压力:
 ### CLI 接口
 
 ```
-policy-gateway network-mode tcp            # TCP-only
-policy-gateway network-mode udp            # UDP-only
-policy-gateway network-mode quic           # QUIC-only
-policy-gateway network-mode tls13          # 强制 TLS 1.3 (1-RTT)
-policy-gateway network-mode tls13-0rtt    # 强制 TLS 1.3 + 0-RTT
-policy-gateway network-mode status         # 查看当前模式
-policy-gateway network-mode reset          # 恢复默认
+policy-gateway network-mode auto                         # 默认: 不干预
+policy-gateway network-mode tcp-only                     # force: 仅 TCP
+policy-gateway network-mode udp-only                     # force: 仅 UDP
+policy-gateway network-mode quic-only                    # force: 仅 QUIC
+policy-gateway network-mode prefer-tcp                   # prefer: TCP 优先
+policy-gateway network-mode prefer-quic                  # prefer: QUIC 优先
+policy-gateway network-mode tls13                        # force: 仅 TLS 1.3
+policy-gateway network-mode tls13-0rtt                   # force: 仅 TLS 1.3 + 0-RTT
+policy-gateway network-mode prefer-tls13                 # prefer: TLS 1.3 优先
+policy-gateway network-mode status                       # 查看当前模式
+policy-gateway network-mode reset                        # 恢复 auto
 ```
 
 ### 例外列表
