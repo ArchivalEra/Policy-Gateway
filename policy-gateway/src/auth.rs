@@ -196,8 +196,8 @@ impl AuthTable {
             mac: None,
             created_at: chrono::Utc::now().timestamp(),
             last_seen: None,
-            hw_id: None,
-            hw_platform: None,
+            hw_id,
+            hw_platform,
         };
         self.pending.insert(request_id, sha256);
         self.entries.insert(sha256, entry);
@@ -213,6 +213,10 @@ impl AuthTable {
         entry.bitmap = bitmap;
         entry.status = EntryStatus::Active;
         Some(entry)
+    }
+
+    pub fn remove_pending(&mut self, request_id: &str) -> Option<[u8; 32]> {
+        self.pending.remove(request_id)
     }
 
     pub fn reject(&mut self, request_id: &str) -> Option<&PermissionEntry> {

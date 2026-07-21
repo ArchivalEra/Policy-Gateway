@@ -60,12 +60,15 @@ pub async fn handle(
     let entry = table.get_mut(&sha256);
     if let Some(e) = entry {
         e.status = EntryStatus::Active;
+        e.bitmap = e.requested_bitmap;
         if let Some(ref hid) = req.hw_id { e.hw_id = Some(hid.clone()); }
         e.hw_platform = req.hw_platform.clone();
     }
+    // 从 pending 映射移除
+    let _ = table.remove_pending(&req.request_id);
 
     // 从 pending 映射移除（同 approve/reject）
-    // FIXME: 需要 pending.remove_by_sha256 方法
+    
     log::info!("✅ 证书确认: {}", req.request_id);
 
     Ok(Json(ConfirmResponse {
