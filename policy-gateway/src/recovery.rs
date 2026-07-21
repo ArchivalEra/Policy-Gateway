@@ -63,7 +63,7 @@ pub fn verify_short_code(code: &str, expected_sha256: &[u8; 32]) -> bool {
     let hash = digest(&SHA256, code.as_bytes());
     let mut sha256 = [0u8; 32];
     sha256.copy_from_slice(hash.as_ref());
-    ring::constant_time::verify_slices_are_equal(&sha256, expected_sha256).is_ok()
+    sha256 == expected_sha256.as_ref()
 }
 
 /// 生成证书加密恢复数据
@@ -82,7 +82,7 @@ pub fn generate_cert_encrypted(cert_pem: &str) -> Option<RecoveryConfig> {
     let data_bytes = data.as_ref();
 
     // 使用 ring 的 aead 进行 AES-256-GCM 加密
-    use ring::aead::{AES_256_GCM, Nonce, SealingKey, UnboundKey, LessSafeKey, Aad};
+    use ring::aead::{AES_256_GCM, Nonce, UnboundKey, LessSafeKey, Aad};
     use ring::rand::SystemRandom;
 
     let rng = SystemRandom::new();
@@ -128,7 +128,7 @@ pub fn verify_cert_encrypted(cert_pem: &str, config: &RecoveryConfig) -> bool {
     let key = &cert_bytes[..32];
     let expected_sha256 = digest(&SHA256, cert_bytes);
 
-    use ring::aead::{AES_256_GCM, Nonce, OpeningKey, UnboundKey, LessSafeKey, Aad};
+    use ring::aead::{AES_256_GCM, Nonce, UnboundKey, LessSafeKey, Aad};
 
     let unbound_key = match UnboundKey::new(&AES_256_GCM, key) {
         Ok(k) => k,
@@ -145,7 +145,7 @@ pub fn verify_cert_encrypted(cert_pem: &str, config: &RecoveryConfig) -> bool {
 
     match key_lsk.open_in_place(nonce, Aad::empty(), &mut in_out) {
         Ok(decrypted) => {
-            ring::constant_time::verify_slices_are_equal(decrypted, expected_sha256.as_ref()).is_ok()
+            decrypted == expected_sha256.as_ref()
         }
         Err(_) => false,
     }
