@@ -21,6 +21,9 @@ pub mod modules;
 pub type AppState = modules::CoreState;
 
 use std::sync::Arc;
+use ring::signature::KeyPair as _;
+
+
 use tokio::sync::RwLock;
 use axum::Router;
 
@@ -174,19 +177,70 @@ async fn cli_mode(args: &[String]) {
             }
         },
         Some("vm") => { vm::cli(&args[1..]); }
-        Some("init") => {
-            println!("🔐 policy-gateway 首次设置");
+                Some("init") => {
+            println!("policy-gateway first setup");
             println!();
-            println!("这个命令会生成根证书和初始配置。");
-            println!("如果你没有 deploy/seed.json，请先运行 bootstrap.sh。");
+
+            // check if CA key exists
+            let ca_key_path = "/etc/config/policy-gateway/ca.key";
+            if std::path::Path::new(ca_key_path).exists() {
+                println!("CA key already exists: {}", ca_key_path);
+                println!("  Delete it to regenerate.");
+                return;
+            }
+
+            // generate Ed25519 CA keypair
+            println!("generating Ed25519 CA keypair...");
+            let rng = ring::rand::SystemRandom::new();
+            let pkcs8 = ring::signature::Ed25519KeyPair::generate_pkcs8(&rng)
+                .expect("key generation failed");
+            let kp = ring::signature::Ed25519KeyPair::from_pkcs8(pkcs8.as_ref())
+                .expect("key parse failed");
+            let pk_bytes = kp.public_key().as_ref();
+            let pk_hex = hex::encode(pk_bytes);
+
+            // self-signed root certificate
+            println!("signing self-signed root certificate...");
+            let not_before = chrono::Utc::now().timestamp();
+            let not_after = not_before + 3650 * 86400;
+            let body = format!(
+                "subject:policy-gateway-root\nserial:00\npubkey:{}\nnot_before:{}\nnot_after:{}\nrole:root\n",
+                pk_hex, not_before, not_after
+            );
+            let sig = kp.sign(body.as_bytes());
+            let sig_hex = hex::encode(sig.as_ref());
+            let cert_pem = format!(
+                "-----BEGIN CERTIFICATE-----\n{}\nsignature:{}\n-----END CERTIFICATE-----\n",
+                body, sig_hex
+            );
+
+            // seed.json
+            let sha256 = crate::tls::pem_sha256(&cert_pem);
+            let token = uuid::Uuid::new_v4().to_string();
+            let seed = serde_json::json!({
+                "manager_token": token,
+                "root_cert_pem": cert_pem,
+                "ca_pubkey_hex": pk_hex,
+                "entries": [{
+                    "sha256": hex::encode(sha256),
+                    "hostname": "initial root",
+                    "bitmap": "FF",
+                    "status": "active"
+                }]
+            });
+            let config_dir = std::path::Path::new("/etc/config/policy-gateway");
+            std::fs::create_dir_all(config_dir).ok();
+            let seed_path = config_dir.join("seed.json");
+            match std::fs::write(&seed_path, serde_json::to_string_pretty(&seed).unwrap()) {
+                Ok(_) => println!("wrote {}", seed_path.display()),
+                Err(e) => eprintln!("write seed.json failed: {} (not root?)", e),
+            }
             println!();
-            println!("用法: policy-gateway init");
-            println!("      然后访问 http://<router-ip>:8443/manager?token=<token>");
-            println!();
-            println!("首次启动说明:");
-            println!("  1. 确保 seed.json 和根证书已在 /etc/config/ 目录");
-            println!("  2. 启动服务后访问 /manager");
-            println!("  3. 用根证书登录，即可审批其他设备");
+            println!("setup complete!");
+            println!("  root cert SHA256: {}", hex::encode(sha256));
+            println!("  manager token:    {}", token);
+            println!("  http://<router-ip>:8443/manager?token={}", token);
+            println!("  save this token! lost it -> use Worker recovery.");
         }
         Some("module") => {
             println!("📦 模块系统 v0.1");
