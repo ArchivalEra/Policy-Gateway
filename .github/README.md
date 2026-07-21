@@ -37,11 +37,11 @@ MANAGER_TOKEN=test cargo run
 
 | | |
 |------|------|
-| 用户手册 | [`policy-gateway/docs/USER_GUIDE.md`](../policy-gateway/docs/USER_GUIDE.md) |
 | 核心架构 | [`PLAN.md`](../PLAN.md) |
 | 编译指南 | [`policy-gateway/README.md`](../policy-gateway/README.md) |
 | 交叉编译 | [`policy-gateway/docs/CROSS_COMPILE.md`](../policy-gateway/docs/CROSS_COMPILE.md) |
 | 维护规章 | [`policy-gateway/docs/MAINTENANCE.md`](../policy-gateway/docs/MAINTENANCE.md) |
+| MCU 教程 | 运行后访问 `/api/help?topic=mcu` |
 
 ## CI/CD
 
