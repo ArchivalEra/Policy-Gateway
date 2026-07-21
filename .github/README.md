@@ -1,11 +1,13 @@
 # 🔐 policy-gateway — CA 证书签发网关
 
-**没证书不能上网。** 路由器用 Ed25519 签发证书，权限在位图里，浏览器确认后放行。
+**没证书不能上网。** 路由器用 Ed25519 签发证书，权限在位图里，两阶段确认后放行。
 
+[![CI](https://github.com/ArchivalEra/Worker-Router-Gateway/actions/workflows/ci.yml/badge.svg)](https://github.com/ArchivalEra/Worker-Router-Gateway/actions/workflows/ci.yml)
 [![AGPL-3.0](https://img.shields.io/badge/license-AGPL--3.0-blue)](../LICENSE)
+![Rust](https://img.shields.io/badge/rust-1.96+-orange)
 
 ```
-设备 → CSR → 路由器 CA 签名 → 客户端确认 → 上网
+设备 → CSR → CA 签名(Ed25519) → 客户端确认 → 上网
 ```
 
 ## 快速开始
@@ -13,8 +15,8 @@
 ```bash
 git clone https://github.com/ArchivalEra/Worker-Router-Gateway.git
 cd policy-gateway
-cargo test    # 29 测试
-./build.sh    # 编译
+cargo test    # 31 测试, 0 警告
+./build.sh    # 编译 main + VM
 MANAGER_TOKEN=test cargo run
 ```
 
@@ -23,15 +25,27 @@ MANAGER_TOKEN=test cargo run
 ## 架构
 
 ```
-┌─────────────────────────────────────────┐
-│  CA 引擎       权限表       设备追踪    │
-│  Ed25519       位图         device_id   │
-│  sign_csr      GC 规则      MAC 集合    │
-├─────────────────────────────────────────┤
-│  signup        confirm      manager     │
-│  CSR 提交      两阶段确认    审批面板    │
-└─────────────────────────────────────────┘
+┌────────────────────────────────────────────┐
+│  核心 (Rust, event-driven, 零 unsafe)      │
+│  CA 引擎       权限表       设备追踪       │
+│  Ed25519       位图(u64)    device_id      │
+│  sign_csr      GC 规则      复用检测       │
+├────────────────────────────────────────────┤
+│  signup        confirm      manager        │
+│  CSR/pubkey    两阶段确认    审批面板       │
+├────────────────────────────────────────────┤
+│  CLI            VM           Worker         │
+│  perm gc/list  安装/回滚    纯恢复模块     │
+└────────────────────────────────────────────┘
 ```
+
+## 组件
+
+| 组件 | 说明 |
+|------|------|
+| `policy-gateway` | 主程序: HTTP 服务 + CA 引擎 + CLI |
+| `policy-gateway-vm` | 不死鸟: 独立版本管理 (安装/快照/回滚) |
+| `worker/` | Cloudflare Worker: 仅根证书恢复 |
 
 ## 文档
 
@@ -39,11 +53,35 @@ MANAGER_TOKEN=test cargo run
 |------|------|
 | 核心架构 | [`PLAN.md`](../PLAN.md) |
 | 编译指南 | [`policy-gateway/README.md`](../policy-gateway/README.md) |
+| 用户手册 | [`policy-gateway/docs/USER_GUIDE.md`](../policy-gateway/docs/USER_GUIDE.md) |
 | 交叉编译 | [`policy-gateway/docs/CROSS_COMPILE.md`](../policy-gateway/docs/CROSS_COMPILE.md) |
 | 维护规章 | [`policy-gateway/docs/MAINTENANCE.md`](../policy-gateway/docs/MAINTENANCE.md) |
 | MCU 教程 | 运行后访问 `/api/help?topic=mcu` |
 
-## CI/CD
+## 快速部署 (OpenWrt/ImmortalWrt)
 
-推送到任何分支自动运行 `cargo test` + `cargo build --release`。  
-Workflow: [`.github/workflows/ci.yml`](./workflows/ci.yml)
+```bash
+# 1. 安装 VM
+scp policy-gateway-vm root@192.168.1.1:/usr/sbin/
+ssh root@192.168.1.1 "policy-gateway-vm init"
+
+# 2. 安装主程序 (交叉编译后)
+scp policy-gateway root@192.168.1.1:/tmp/
+ssh root@192.168.1.1 "policy-gateway-vm install /tmp/policy-gateway"
+
+# 3. 启动
+ssh root@192.168.1.1 "MANAGER_TOKEN=my-token policy-gateway &"
+```
+
+浏览器打开 `http://192.168.1.1:8443/manager?token=my-token`
+
+## CLI
+
+```bash
+policy-gateway --version          # v0.2.7
+policy-gateway --help             # 命令列表
+policy-gateway init               # 首次设置 (生成根证书 + token)
+policy-gateway perm gc            # GC 过期条目
+policy-gateway vm snapshot test   # 快照
+policy-gateway-vm rollback test   # 回滚
+```
