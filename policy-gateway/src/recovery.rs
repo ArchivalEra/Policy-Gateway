@@ -1,3 +1,4 @@
+#![allow(dead_code)]
 //! Recovery — 根证书恢复系统
 //!
 //! 三种模式:
