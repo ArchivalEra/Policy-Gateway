@@ -11,7 +11,7 @@
 
 ```
 main        ← 最新稳定版，受 pre-push 保护
-phase1.x    ← Phase 1 开发分支
+phase2.x    ← Phase 2 开发分支（当前 phase2.7）
 feature/*   ← 功能分支（可选）
 ```
 
@@ -109,15 +109,18 @@ policy-gateway 是什么?
 代码在哪?
   单仓库 ArchivalEra/Worker-Router-Gateway
   main — 最新稳定
-  phase1.x — 开发中
+  phase2.x — 开发中（当前 phase2.7）
 
 怎么编译?
-  cd policy-gateway && cargo build     # 本地
-  ./build.sh                           # 一键编译 (全架构)
-  ./setup-cross.sh && ./build-mipsel.sh  # 交叉编译
+  cd policy-gateway && cargo build     # 本地开发
+  ./build.sh                           # 一键编译全组件 (main + VM)
+  ./setup-cross.sh                     # 交叉编译环境 (mipsel)
 
 怎么测试?
-  cargo test                           # 19 测试全过
+  cargo test                           # 29 测试全过, 0 警告
+
+怎么初始化?
+  policy-gateway init                  # 首次设置: 生成根证书 + 管理令牌
 
 怎么部署?
   ./deploy/install.sh                  # OpenWrt 安装
