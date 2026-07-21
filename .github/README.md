@@ -62,18 +62,18 @@ MANAGER_TOKEN=test cargo run
 
 ```bash
 # 1. 安装 VM
-scp policy-gateway-vm root@192.168.1.1:/usr/sbin/
-ssh root@192.168.1.1 "policy-gateway-vm init"
+scp policy-gateway-vm root@<router-ip>:/usr/sbin/
+ssh root@<router-ip> "policy-gateway-vm init"
 
 # 2. 安装主程序 (交叉编译后)
-scp policy-gateway root@192.168.1.1:/tmp/
-ssh root@192.168.1.1 "policy-gateway-vm install /tmp/policy-gateway"
+scp policy-gateway root@<router-ip>:/tmp/
+ssh root@<router-ip> "policy-gateway-vm install /tmp/policy-gateway"
 
 # 3. 启动
-ssh root@192.168.1.1 "MANAGER_TOKEN=my-token policy-gateway &"
+ssh root@<router-ip> "MANAGER_TOKEN=<your-token> policy-gateway &"
 ```
 
-浏览器打开 `http://192.168.1.1:8443/manager?token=my-token`
+浏览器打开 `http://<router-ip>:8443/manager?token=<your-token>`
 
 ## CLI
 

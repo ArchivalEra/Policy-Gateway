@@ -59,22 +59,22 @@ feature/*   ← 功能分支（可选）
 
 ```bash
 # Step 1: 确保 SSH 稳定
-ssh -p 22 root@192.168.1.1 "echo alive"
+ssh -p 22 root@<router-ip> "echo alive"
 
 # Step 2: 沙盒目录
-ssh -p 22 root@192.168.1.1 "mkdir -p /tmp/pg-test"
+ssh -p 22 root@<router-ip> "mkdir -p /tmp/pg-test"
 
 # Step 3: 推送二进制
-scp -P 22 ./binary root@192.168.1.1:/tmp/pg-test/
+scp -P 22 ./binary root@<router-ip>:/tmp/pg-test/
 
 # Step 4: 测试
-ssh -p 22 root@192.168.1.1 "/tmp/pg-test/binary --help"
+ssh -p 22 root@<router-ip> "/tmp/pg-test/binary --help"
 
 # Step 5: 清理
-ssh -p 22 root@192.168.1.1 "rm -rf /tmp/pg-test"
+ssh -p 22 root@<router-ip> "rm -rf /tmp/pg-test"
 
 # Step 6: 网络恢复确认
-ssh -p 22 root@192.168.1.1 "ping -c 1 8.8.8.8"
+ssh -p 22 root@<router-ip> "ping -c 1 8.8.8.8"
 ```
 
 ### nftables 实验特别警示
@@ -126,9 +126,9 @@ policy-gateway 是什么?
   ./deploy/install.sh                  # OpenWrt 安装
 
 路由器在哪?
-  root@192.168.1.1:22
-  密钥: newifi3_key (chmod 600)
-  密码: 存在记忆 wrt-connection 中
+  root@<router-ip>
+  密钥: <your-ssh-key>
+  密码: <your-password>
 
 怎么推代码?
   source proxy-method.sh
@@ -225,7 +225,7 @@ scope:
 | 项目 | 值 | 位置 |
 |------|-----|------|
 | 仓库 | ArchivalEra/Worker-Router-Gateway | GitHub |
-| 路由器 | root@192.168.1.1:22 | 本地网络 |
+| 路由器 | root@<router-ip> | 本地网络 |
 | 路由器固件 | ImmortalWrt 6.18.37 / MT7621 | — |
 | 开发机 | Debian sid, Rust 1.96, nightly | 本容器 |
 | 代理 | socks5h://127.0.0.1:2080 | 以太网出口 |
