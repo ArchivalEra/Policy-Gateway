@@ -676,8 +676,8 @@ Phase 2.7🚀  VM install + /help + MCU + 全路由   ✅
 ### 进行中
 
 ```
-Phase 2.7    Worker 同步 + 对象存储适配   🔜（当前）
-Phase 3.0    沙盒 + 算力委派               📋（规划）
+Phase 2.8    Worker 镜像 — 路由器离线时接管 /manager+/signup   🔜
+Phase 3.0    沙盒 + 算力委派                                    📋
 ```
 
 ### 搁置
