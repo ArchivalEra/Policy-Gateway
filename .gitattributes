@@ -1,0 +1,24 @@
+# Normalize line endings
+* text=auto
+
+# Rust
+*.rs text diff=rust
+*.toml text
+
+# Shell
+*.sh text eol=lf
+*.py text diff=python
+
+# Docs
+*.md text diff=markdown
+
+# Config
+*.json text
+*.yml text
+*.yaml text
+
+# Binary
+*.png binary
+*.jpg binary
+*.pem binary
+*.key binary
