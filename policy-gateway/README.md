@@ -1,33 +1,42 @@
-# policy-gateway
+# policy-gateway — 路由器端
 
-单一二进制，包含 mTLS 网关 + 权限表 + 计算调度。
+CA 证书签发网关。一个二进制搞定：认证门户 + CA 引擎 + 权限表 + 不死鸟 VM。
 
-## 目录结构
+## 模块
 
-```
-policy-gateway/
-├── Cargo.toml
-├── src/
-│   ├── main.rs          # 入口
-│   ├── tls.rs           # mTLS + dangerous_configuration
-│   ├── auth.rs          # 权限表 + SHA256 查表
-│   ├── api/             # HTTP 端点
-│   │   ├── signup.rs    # POST /api/signup
-│   │   ├── status.rs    # GET /api/signup/status
-│   │   ├── manager.rs   # /manager 审批面板
-│   │   └── sync.rs      # /sync 路由器↔Worker
-│   ├── anti_abuse.rs    # 复用检测 + 恢复计次
-│   └── worker.rs        # Cloudflare Worker 逻辑
-├── frontend/            # HTML + 字符串表
-│   ├── index.html
-│   ├── signup.html
-│   ├── manager.html
-│   └── strings.json     # 字符串表
-└── docs/
-    └── PLAN.md
+| 模块 | 说明 |
+|------|------|
+| `main.rs` | 入口 + init + CA 密钥启动时生成 |
+| `auth.rs` | 权限表 + PendingConfirm + device_id/hw_id |
+| `tls.rs` | CA 引擎 (generate_ca / sign_csr / verify) |
+| `recovery.rs` | 短码(8位) / 证书加密(AES-256-GCM) / 关闭 |
+| `anti_abuse.rs` | 设备追踪 + 并发复用检测 |
+| `vm.rs` | 不死鸟委派层（调用独立 VM 二进制）|
+| `api/signup.rs` | CSR → CA 签发 → pending_confirm (两阶段) |
+| `api/confirm.rs` | 证书确认 (cert-confirm) |
+| `api/status.rs` | 支持 id 和 sha256 双查法 |
+| `api/manager.rs` | 审批面板 + 恒定时间 token 鉴权 |
+| `api/sync.rs` | 事件数据库同步协议 |
+| `modules/` | 门户模块 (core-portal 必需) |
+
+## 测试
+
+```bash
+cargo test           # 25 测试
+cargo test tls       # CA 引擎测试
+cargo test recovery  # 恢复系统测试
 ```
 
 ## 编译
 
+```bash
+# 本地
+./build.sh
 
+# 路由器 mipsel
+cargo zigbuild --target mipsel-unknown-linux-musl --release
 
+# VM 独立二进制
+cargo build -p policy-gateway-vm --release
+upx --best target/release/policy-gateway-vm
+```

@@ -1,8 +1,8 @@
-# ca.example-gateway — 私有 CA + 证书控制上网网关
+# policy-gateway — CA 证书签发网关
 
-> **域名**: `ca.example.com`
-> **两个独立项目**: `ca-backend`（手机 CA） + `policy-gateway`（路由器/Worker）
-> **证书 = 纯身份，权限 = 位图存表里**
+> **路由器 CA**: 签发所有客户端证书，两阶段确认。
+> **device_id**: 持久设备 ID（隐私保护），允许相同 hostname。
+> **单项目**: `policy-gateway`（路由器 Rust + Worker JS）。
 > **没有连接证书 = 不能上网**
 
 ---
