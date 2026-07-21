@@ -43,6 +43,10 @@ async fn main() {
             println!("policy-gateway v{}", env!("CARGO_PKG_VERSION"));
             return;
         }
+        if args[1] == "--help" || args[1] == "-h" {
+            print_help();
+            return;
+        }
         return cli_mode(&args).await;
     }
 
@@ -171,6 +175,29 @@ async fn main() {
 }
 
 /// CLI 子命令
+
+fn print_help() {
+    println!("policy-gateway v{}", env!("CARGO_PKG_VERSION"));
+    println!();
+    println!("用法:");
+    println!("  policy-gateway                     启动 HTTP 服务");
+    println!("  policy-gateway --version, -V       显示版本");
+    println!("  policy-gateway --help, -h          显示此帮助");
+    println!("  policy-gateway perm <gc|list|stats> 权限表操作");
+    println!("  policy-gateway vm <command>         VM 管理 (委派)");
+    println!("  policy-gateway init                首次设置");
+    println!("  policy-gateway module              模块信息");
+    println!();
+    println!("VM 命令（通过 policy-gateway-vm 直接执行）:");
+    println!("  init      初始化备份目录");
+    println!("  install   安装/升级主程序");
+    println!("  snapshot  创建快照");
+    println!("  rollback  回滚");
+    println!("  list      列举快照");
+    println!("  status    查看状态");
+    println!("  verify    校验完整性");
+}
+
 async fn cli_mode(args: &[String]) {
     match args.get(1).map(|s| s.as_str()) {
         Some("perm") => match args.get(2).map(|s| s.as_str()) {
