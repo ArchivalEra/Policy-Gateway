@@ -12,16 +12,22 @@ fn call_vm(args: &[&str]) -> std::process::Output {
     } else if std::path::Path::new("/usr/sbin/policy-gateway-vm").exists() {
         "/usr/sbin/policy-gateway-vm"
     } else {
-        // 回退：尝试同目录下的 vm 二进制
-        "/tmp/system/policy-gateway-vm"
+        // 回退：系统 PATH 中的 vm
+        "policy-gateway-vm"
     };
-    
+
     if !std::path::Path::new(vm_bin).exists() {
-        // VM 独立二进制不存在，用核心内置的简易版
+        // VM 独立二进制不存在
+        log::warn!("policy-gateway-vm 未安装 — 快照/回滚功能不可用");
         return std::process::Command::new("echo")
-            .arg("no vm binary found — 核心快照功能可用，模块回滚需要 vm-mod")
+            .arg("-e")
+            .arg("policy-gateway-vm: 未找到\n安装: apt install policy-gateway-vm 或下载到 /mnt/usb/")
             .output()
-            .unwrap();
+            .unwrap_or_else(|_| std::process::Output {
+                status: std::process::ExitStatus::default(),
+                stdout: b"error: cannot run echo\n".to_vec(),
+                stderr: Vec::new(),
+            });
     }
     
     std::process::Command::new(vm_bin)

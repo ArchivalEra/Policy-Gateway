@@ -41,7 +41,6 @@ fn main() {
     if args.len() > 1 { cli(&args); return; }
 
     print_status();
-    // 自动恢复: 主程序不存在或看门狗超时
     if !main_bin().exists() || !watchdog().exists() {
         if backup_dir().join("last-good/main.bin").exists() {
             eprintln!("⚠️  检测到异常，自动恢复 last-good...");
@@ -54,6 +53,7 @@ fn cli(args: &[String]) {
     match args.get(1).map(|s| s.as_str()) {
         Some("snapshot") => snapshot(args.get(2).map(|s| s.as_str()).unwrap_or("default")),
         Some("rollback") => rollback(args.get(2).map(|s| s.as_str()).unwrap_or("last-good")),
+        Some("install") => install(args.get(2)),
         Some("list") => list_snapshots(),
         Some("status") => print_status(),
         Some("verify") => verify(),
@@ -64,12 +64,96 @@ fn cli(args: &[String]) {
 
 fn help() {
     println!("VM — 不死鸟 v0.1 (Rust, 零恐慌)");
+    println!("  install <path>    安装/升级主程序（来源: USB / curl / scp）");
     println!("  snapshot [name]    创建快照 (原子写入)");
     println!("  rollback [id]      回滚 (先校验 SHA256)");
     println!("  list               列出快照");
     println!("  status             查看状态");
     println!("  verify             校验所有快照完整性");
     println!("  init               初始化备份目录");
+}
+
+fn install(src_arg: Option<&String>) {
+    let src_path = match src_arg {
+        Some(p) => PathBuf::from(p),
+        None => {
+            // 尝试常见路径
+            for p in &["/tmp/policy-gateway", "./policy-gateway", "/mnt/usb/policy-gateway"] {
+                if Path::new(p).exists() { return install_src(Path::new(p)); }
+            }
+            eprintln!("❌ 未指定源文件，也不在常见路径");
+            eprintln!("   用法: vm install /path/to/policy-gateway");
+            return;
+        }
+    };
+    install_src(&src_path);
+}
+
+fn install_src(src: &Path) {
+    if !src.exists() {
+        eprintln!("❌ 源文件不存在: {}", src.display());
+        return;
+    }
+    // 校验源文件完整性
+    let src_hash = match sha256_file(src) {
+        Some(h) => h,
+        None => { eprintln!("❌ 源文件损坏"); return; }
+    };
+
+    let dst = main_bin();
+    if let Some(parent) = dst.parent() {
+        if let Err(e) = std::fs::create_dir_all(parent) {
+            eprintln!("❌ 无法创建目标目录: {}", e);
+            return;
+        }
+    }
+
+    // 如果已存在，先快照
+    if dst.exists() {
+        println!("📦 主程序已存在，自动创建 pre-install 快照...");
+        let pre_dir = backup_dir().join("pre-install");
+        let _ = std::fs::create_dir_all(&pre_dir);
+        let _ = std::fs::copy(&dst, pre_dir.join("main.bin"));
+    }
+
+    // 原子安装
+    let tmp = dst.with_extension("inst.tmp");
+    if let Err(e) = std::fs::copy(src, &tmp) {
+        eprintln!("❌ 安装写入失败: {}", e);
+        let _ = std::fs::remove_file(&tmp);
+        return;
+    }
+    if let Err(e) = std::fs::rename(&tmp, &dst) {
+        eprintln!("❌ 安装重命名失败: {}", e);
+        return;
+    }
+
+    // 安装后自动创建 fresh-install 快照
+    let fresh_dir = backup_dir().join("fresh-install");
+    let _ = std::fs::create_dir_all(&fresh_dir);
+    let _ = std::fs::copy(&dst, fresh_dir.join("main.bin"));
+
+    // 同步到 last-good
+    let lg_dir = backup_dir().join("last-good");
+    let _ = std::fs::create_dir_all(&lg_dir);
+    let _ = std::fs::copy(&dst, lg_dir.join("main.bin"));
+
+    // 写看门狗
+    touch_watchdog();
+
+    println!("✅ 安装完成: {}", dst.display());
+    println!("   SHA256: {}", hex::encode(src_hash));
+    println!("   快照 'fresh-install' 已创建");
+    println!("   运行 'policy-gateway' 启动服务");
+    println!("   管理页面: http://<router-ip>:8443/manager");
+}
+
+fn touch_watchdog() {
+    let wd = watchdog();
+    if let Some(parent) = wd.parent() {
+        let _ = std::fs::create_dir_all(parent);
+    }
+    let _ = std::fs::write(&wd, b"running");
 }
 
 fn snapshot(name: &str) {
@@ -83,7 +167,6 @@ fn snapshot(name: &str) {
         eprintln!("❌ 无法创建备份目录: {}", e);
         return;
     }
-    // 原子写入: temp → rename
     let tmp = dir.join(".main.bin.tmp");
     let dst = dir.join("main.bin");
     if let Err(e) = std::fs::copy(&src, &tmp) {
@@ -95,7 +178,6 @@ fn snapshot(name: &str) {
         eprintln!("❌ 重命名失败: {}", e);
         return;
     }
-    // 校验刚刚写入的快照
     if sha256_file(&dst).is_none() {
         eprintln!("❌ 快照损坏，删除");
         let _ = std::fs::remove_file(&dst);
@@ -103,7 +185,6 @@ fn snapshot(name: &str) {
     }
     println!("📸 快照 '{}' 已创建 ({})", name, dst.display());
     
-    // 如果是默认快照，同步到 last-good
     if name == "default" || name == "last-good" {
         let lg = backup_dir().join("last-good");
         let _ = std::fs::create_dir_all(&lg);
@@ -121,7 +202,6 @@ fn rollback(id: &str) {
         eprintln!("❌ 快照 '{}' 不存在 ({})", id, src.display());
         return;
     }
-    // 回滚前校验快照完整性
     if sha256_file(&src).is_none() {
         eprintln!("❌ 快照 '{}' 已损坏，无法回滚", id);
         return;
@@ -130,13 +210,11 @@ fn rollback(id: &str) {
     if let Some(parent) = dst.parent() {
         let _ = std::fs::create_dir_all(parent);
     }
-    // 先备份当前主程序（如果存在）
     if dst.exists() {
         let pre = backup_dir().join("pre-rollback");
         let _ = std::fs::create_dir_all(&pre);
         let _ = std::fs::copy(&dst, pre.join("main.bin"));
     }
-    // 原子写入
     let tmp = dst.with_extension("bin.tmp");
     if let Err(e) = std::fs::copy(&src, &tmp) {
         eprintln!("❌ 回滚写入失败: {}", e);
@@ -147,6 +225,7 @@ fn rollback(id: &str) {
         eprintln!("❌ 回滚重命名失败: {}", e);
         return;
     }
+    touch_watchdog();
     println!("⏪ 已回滚到 '{}'", id);
 }
 
@@ -192,7 +271,6 @@ fn print_status() {
         let c = e.flatten().filter(|e| e.path().join("main.bin").exists()).count();
         println!("  快照数: {}", c);
     }
-    // 校验自身
     let self_path = std::env::current_exe().unwrap_or_default();
     println!("  自身: {} ({})", self_path.display(), 
         if sha256_file(&self_path).is_some() { "完整" } else { "⚠️ 可能损坏" });
@@ -218,11 +296,20 @@ fn verify() {
 }
 
 fn init_paths() {
-    for name in &["last-good", "pre-rollback"] {
+    for name in &["last-good", "pre-rollback", "pre-install", "fresh-install"] {
         let p = backup_dir().join(name);
         match std::fs::create_dir_all(&p) {
             Ok(_) => println!("✅ {}", p.display()),
             Err(e) => eprintln!("❌ {}: {}", p.display(), e),
         }
     }
+    // 也创建主程序目录
+    if let Some(parent) = main_bin().parent() {
+        match std::fs::create_dir_all(parent) {
+            Ok(_) => println!("✅ {} (目标目录)", parent.display()),
+            Err(e) => eprintln!("❌ {}: {}", parent.display(), e),
+        }
+    }
+    println!("✅ VM 目录初始化完成");
+    println!("   准备就绪，可以运行 'vm install /path/to/policy-gateway' 安装主程序");
 }
