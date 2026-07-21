@@ -645,36 +645,49 @@ newifi3 闪存: 10MB                        USB 32GB~1TB
 
 ## 十、路线图
 
+### 已交付
+
 ```
-Phase 0: ca-backend 手机 CA
-  [ ] Termux + openssl 生成根证书
-  [ ] 实现 /sign /revoke /status /ca.crt API
-  [ ] 测试: curl 签发一个证书
+Phase 0.5    门户核心 + 权限表 + GC             ✅
+Phase 1.0    nftables 双表 + 恢复系统            ✅
+Phase 1.5    CA 引擎 (Ed25519 + sign_csr)       ✅
+Phase 2.0    PendingConfirm + hw_id              ✅
+Phase 2.2    device_id + 安全审查                ✅
+Phase 2.5-3  仓库翻新 + recovery.rs 恢复         ✅
+Phase 2.6    MODULES.md 修正 + vm-mod 搁置       ✅
+Phase 2.7🚀  VM install + /help + MCU + 全路由   ✅
+```
 
-Phase 1: policy-gateway 核心（路由器）
-  [ ] Rust 单二进制: mTLS 验证 + 权限表
-  [ ] 连接证 → iptables 放行 WAN
-  [ ] 无连接证 → 全拦截 + 跳转 /signup
-  [ ] /signup + /manager 页面
-  [ ] 心跳 + 180s 超时断网
+### API 一览
 
-Phase 2: 同步 + Worker
-  [ ] Cloudflare Worker 部署
-  [ ] 路由器 ↔ Worker 双向同步
-  [ ] 测试四种网络场景
+| 端点 | 方法 | 说明 |
+|------|------|------|
+| `/signup` | GET | HTML 申请表单（含 Web Crypto 密钥生成） |
+| `/api/signup` | POST | 提交 CSR/证书申请 |
+| `/signup/status` | GET | HTML 状态页 |
+| `/api/signup/status` | GET | JSON 状态查询 |
+| `/manager` | GET | HTML 审批面板 |
+| `/api/manager/approve` | POST | 批准/拒绝申请 |
+| `/api/manager/pending` | GET | JSON 待审批列表（MCU 用） |
+| `/api/cert-confirm` | POST | 两阶段确认证书 |
+| `/permissions` | GET | HTML 权限表 |
+| `/api/help` | GET | JSON 教程（MCU/浏览器/CLI/headless） |
 
-Phase 3: 防滥用 + 管理
-  [ ] 证书复用检测 → auto compromised
-  [ ] 恢复计次（每天 2 次上限）
-  [ ] 根证书无视上限恢复
-  [ ] /permissions 权限表页面
-  [ ] 字符串表 + 多客户端教程 (/help)
-  [ ] 位图编辑器
+### 进行中
 
-Phase 4: 沙盒 + 计算
-  [ ] 设备证书 → 沙盒目录分配
-  [ ] 计算任务委派
-  [ ] 共享库挂载
+```
+Phase 2.7    Worker 同步 + 对象存储适配   🔜（当前）
+Phase 3.0    沙盒 + 算力委派               📋（规划）
+```
+
+### 搁置
+
+```
+- vm-mod（模块版本管理器）
+- redb 持久化
+- 权限动态增长
+- 位图编辑器
+- 心跳超时断网（与 MIPS 理念相悖）
 ```
 
 ---

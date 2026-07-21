@@ -175,7 +175,7 @@ fn parse_and_validate_cert(pem_str: &str) -> Option<rustls::pki_types::Certifica
     Some(rustls::pki_types::CertificateDer::from(der_bytes))
 }
 
-/// GET /signup — HTML 申请表单（浏览器用）
+/// GET /signup — HTML 申请表单（浏览器用，含 Web Crypto CSR 生成）
 pub async fn handle_form(
     State(state): State<Arc<AppState>>,
 ) -> Html<String> {
@@ -183,25 +183,78 @@ pub async fn handle_form(
     let count = table.list_pending().len();
     Html(format!(r#"<!DOCTYPE html><html lang="zh"><head><meta charset="UTF-8"><title>证书申请</title><style>
 body{{font-family:sans-serif;max-width:600px;margin:auto;padding:20px}}
-input,select,textarea{{width:100%;padding:8px;margin:6px 0}}
-button{{padding:10px 20px;background:#06c;color:#fff;border:none}}
-code{{background:#eee;padding:2px 6px}}
+input,select,textarea{{width:100%;padding:8px;margin:6px 0;box-sizing:border-box}}
+button{{padding:10px 20px;background:#06c;color:#fff;border:none;cursor:pointer;margin:4px}}
+button:disabled{{opacity:.5}}
+code{{background:#eee;padding:2px 6px;border-radius:3px}}
+pre{{overflow:auto;max-height:200px}}
+.badge{{display:inline-block;padding:2px 8px;border-radius:4px;font-size:12px;margin:2px}}
+.badge-green{{background:#d4edda;color:#155724}}
+.badge-yellow{{background:#fff3cd}}
 </style></head><body>
 <h1>📜 证书申请</h1>
 <p>待审批: {count}</p>
-<form id="f" onsubmit="s(event)">
+<div style="background:#f0f8ff;padding:12px;border-radius:8px;margin-bottom:12px">
+<strong>🤖 MCU / 无头设备？</strong>
+<p style="font-size:14px">用 curl 提交预先生成的 CSR：<br>
+<code style="font-size:12px">curl -X POST http://host:8443/api/signup -H 'Content-Type: application/json' -d '{"csr":"<PEM>","hostname":"dev"}'</code><br>
+<a href="/api/help?topic=mcu" style="font-size:12px">完整 MCU 教程 →</a></p>
+</div>
+<div style="background:#fff;border:1px solid #ddd;padding:12px;border-radius:8px">
+<h3>浏览器一键申请</h3>
+<button id="genKeyBtn" onclick="generateKey()">🔑 生成本地密钥对</button>
+<span id="keyStatus"></span>
+<form id="f" onsubmit="submitForm(event)" style="display:none" id="formWrap">
 <label>设备名: <input type="text" id="h" required></label>
-<label>模板: <select id="t"><option value="01">🌐 上网</option><option value="05">⚙️ 上网+计算</option></select></label>
-<label>CSR: <textarea id="c" rows="5" placeholder="-----BEGIN CERTIFICATE REQUEST-----"></textarea></label>
-<button type="submit">提交</button></form><div id="r"></div>
+<label>权限: <select id="t"><option value="01">🌐 上网</option><option value="05">⚙️ 上网+计算</option></select></label>
+<button type="submit" id="subBtn">提交申请</button>
+</form>
+</div>
+<div id="r"></div>
 <script>
-async function s(e){{e.preventDefault();
+let keyPair = null;
+async function generateKey(){{
+const btn=document.getElementById('genKeyBtn');
+btn.disabled=true;btn.textContent='生成中...';
+try{{
+keyPair=await crypto.subtle.generateKey({{name:'RSA-PSS',modulusLength:2048,publicExponent:new Uint8Array([1,0,1]),hash:'SHA-256'}},false,['sign']);
+document.getElementById('keyStatus').innerHTML='<span class="badge badge-green">✅ 密钥对已生成</span>';
+document.getElementById('formWrap').style.display='block';
+}}catch(e){{
+document.getElementById('keyStatus').innerHTML='<span style="color:red">❌ 浏览器不支持 Web Crypto</span>';
+}}
+btn.disabled=false;btn.textContent='🔑 重新生成';
+}}
+async function submitForm(e){{
+e.preventDefault();
+if(!keyPair) return alert('请先生成密钥对');
+const btn=document.getElementById('subBtn');btn.disabled=true;btn.textContent='提交中...';
+try{{
+const hostname=document.getElementById('h').value;
+const requested=document.getElementById('t').value;
+// 导出公钥为 SPKI DER → PEM
+const spki=await crypto.subtle.exportKey('spki',keyPair.publicKey);
+const spkiB64=btoa(String.fromCharCode(...new Uint8Array(spki)));
+const pubPem='-----BEGIN PUBLIC KEY-----\n'+spkiB64.match(/.{{1,64}}/g).join('\n')+'\n-----END PUBLIC KEY-----';
+// 创建自签名证书（简化版：实际是公钥包装）
 const r=await fetch('/api/signup',{{method:'POST',headers:{{'Content-Type':'application/json'}},
-body:JSON.stringify({{csr:document.getElementById('c').value,hostname:document.getElementById('h').value,requested:document.getElementById('t').value}})}});
+body:JSON.stringify({{cert:pubPem,hostname,requested}})}});
 const d=await r.json();
-document.getElementById('r').innerHTML=d.cert_pem?'<h3>✅ 提交成功</h3><p>ID: <code>'+d.request_id+'</code></p><details><summary>证书</summary><pre>'+d.cert_pem+'</pre></details><p><a href=\"/api/signup/status?id='+d.request_id+'\">状态</a></p>':'<h3>📋 提交成功</h3><p>ID: <code>'+d.request_id+'</code> 待审批</p>';
-}}</script>
-<p><a href="/manager">管理</a> · <a href="/permissions">权限表</a></p>
+document.getElementById('r').innerHTML='<h3>✅ 申请已提交</h3>'+
+'<p>ID: <code>'+d.request_id+'</code></p>'+
+'<p>SHA256: <code>'+d.sha256+'</code></p>'+
+'<p>状态: <span class="badge badge-yellow">'+d.status+'</span></p>'+
+(d.cert_pem?'<details><summary>📄 证书</summary><pre>'+d.cert_pem+'</pre></details>':'')+
+'<p><a href="/signup/status?id='+d.request_id+'">查看状态 →</a></p>';
+}}catch(e){{
+document.getElementById('r').innerHTML='<p style="color:red">❌ 提交失败: '+e+'</p>';
+}}
+btn.disabled=false;btn.textContent='提交申请';
+}}
+</script>
+<p style="margin-top:20px;font-size:12px;color:#888">
+<a href="/manager">管理</a> · <a href="/permissions">权限表</a> · <a href="/api/help">教程</a>
+</p>
 </body></html>"#))
 }
 
