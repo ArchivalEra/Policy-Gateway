@@ -197,7 +197,7 @@ pre{{overflow:auto;max-height:200px}}
 <div style="background:#f0f8ff;padding:12px;border-radius:8px;margin-bottom:12px">
 <strong>🤖 MCU / 无头设备？</strong>
 <p style="font-size:14px">用 curl 提交预先生成的 CSR：<br>
-<code style="font-size:12px">curl -X POST http://host:8443/api/signup -H 'Content-Type: application/json' -d '{"csr":"<PEM>","hostname":"dev"}'</code><br>
+<code style="font-size:12px">curl -X POST http://host:8443/api/signup -H 'Content-Type: application/json' -d '{{csr:PEM,hostname:dev}}'</code><br>
 <a href="/api/help?topic=mcu" style="font-size:12px">完整 MCU 教程 →</a></p>
 </div>
 <div style="background:#fff;border:1px solid #ddd;padding:12px;border-radius:8px">
