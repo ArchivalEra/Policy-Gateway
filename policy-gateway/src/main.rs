@@ -38,6 +38,10 @@ async fn main() {
     // CLI 模式
     let args: Vec<String> = std::env::args().collect();
     if args.len() > 1 {
+        if args[1] == "--version" || args[1] == "-V" {
+            println!("policy-gateway v{}", env!("CARGO_PKG_VERSION"));
+            return;
+        }
         return cli_mode(&args).await;
     }
 
@@ -65,6 +69,27 @@ async fn main() {
 
     // 首次启动检测
     {
+        // 如果 MANAGER_TOKEN 未设置，尝试从 seed.json 读取
+        if std::env::var("MANAGER_TOKEN").is_err() {
+            let fallback_paths = [
+                "/etc/config/policy-gateway/seed.json",
+                "/etc/config/policy-gateway.seed.json",
+                "/etc/policy-gateway/seed.json",
+                "./deploy/seed.json",
+            ];
+            for path in &fallback_paths {
+                if let Ok(content) = std::fs::read_to_string(path) {
+                    if let Ok(seed) = serde_json::from_str::<serde_json::Value>(&content) {
+                        if let Some(token) = seed.get("manager_token").and_then(|v| v.as_str()) {
+                            std::env::set_var("MANAGER_TOKEN", token);
+                            log::info!("   🔑 MANAGER_TOKEN 从 seed.json 加载");
+                            break;
+                        }
+                    }
+                }
+            }
+        }
+
         let table = core.auth_table.read().await;
         if table.is_empty() {
             log::warn!("🆕 首次启动 — 权限表为空");
