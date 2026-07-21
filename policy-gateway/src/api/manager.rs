@@ -16,13 +16,23 @@ use std::sync::Arc;
 use crate::auth::BIT_CONNECTOR;
 use crate::AppState;
 
+/// 恒定时间比较（防时序攻击）
+fn constant_time_eq(a: &str, b: &str) -> bool {
+    if a.len() != b.len() { return false; }
+    let mut result: u8 = 0;
+    for (ca, cb) in a.bytes().zip(b.bytes()) {
+        result |= ca ^ cb;
+    }
+    result == 0
+}
+
 /// 启动时读取 MANAGER_TOKEN，不存在则 panic
 static MANAGER_TOKEN: Lazy<String> = Lazy::new(|| {
     std::env::var("MANAGER_TOKEN").expect("MANAGER_TOKEN 环境变量未设置，启动失败")
 });
 
 pub fn check_auth(token: &str) -> bool {
-    token == *MANAGER_TOKEN
+    constant_time_eq(token, &MANAGER_TOKEN)
 }
 
 /// HTML 转义（防止 XSS）
