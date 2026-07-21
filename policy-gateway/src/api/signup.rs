@@ -7,8 +7,8 @@
 //! 硬件 ID 可选字段，帮助设备绑定。
 
 use axum::extract::State;
+use axum::{Json, response::Html};
 use axum::http::StatusCode;
-use axum::Json;
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 use uuid::Uuid;
@@ -173,6 +173,36 @@ fn parse_and_validate_cert(pem_str: &str) -> Option<rustls::pki_types::Certifica
         .find_map(|item| if let Item::X509Certificate(der) = item { Some(der.to_vec()) } else { None })?;
     if parse_x509_certificate(&der_bytes).is_err() { return None; }
     Some(rustls::pki_types::CertificateDer::from(der_bytes))
+}
+
+/// GET /signup — HTML 申请表单（浏览器用）
+pub async fn handle_form(
+    State(state): State<Arc<AppState>>,
+) -> Html<String> {
+    let table = state.auth_table.read().await;
+    let count = table.list_pending().len();
+    Html(format!(r#"<!DOCTYPE html><html lang="zh"><head><meta charset="UTF-8"><title>证书申请</title><style>
+body{{font-family:sans-serif;max-width:600px;margin:auto;padding:20px}}
+input,select,textarea{{width:100%;padding:8px;margin:6px 0}}
+button{{padding:10px 20px;background:#06c;color:#fff;border:none}}
+code{{background:#eee;padding:2px 6px}}
+</style></head><body>
+<h1>📜 证书申请</h1>
+<p>待审批: {count}</p>
+<form id="f" onsubmit="s(event)">
+<label>设备名: <input type="text" id="h" required></label>
+<label>模板: <select id="t"><option value="01">🌐 上网</option><option value="05">⚙️ 上网+计算</option></select></label>
+<label>CSR: <textarea id="c" rows="5" placeholder="-----BEGIN CERTIFICATE REQUEST-----"></textarea></label>
+<button type="submit">提交</button></form><div id="r"></div>
+<script>
+async function s(e){{e.preventDefault();
+const r=await fetch('/api/signup',{{method:'POST',headers:{{'Content-Type':'application/json'}},
+body:JSON.stringify({{csr:document.getElementById('c').value,hostname:document.getElementById('h').value,requested:document.getElementById('t').value}})}});
+const d=await r.json();
+document.getElementById('r').innerHTML=d.cert_pem?'<h3>✅ 提交成功</h3><p>ID: <code>'+d.request_id+'</code></p><details><summary>证书</summary><pre>'+d.cert_pem+'</pre></details><p><a href=\"/api/signup/status?id='+d.request_id+'\">状态</a></p>':'<h3>📋 提交成功</h3><p>ID: <code>'+d.request_id+'</code> 待审批</p>';
+}}</script>
+<p><a href="/manager">管理</a> · <a href="/permissions">权限表</a></p>
+</body></html>"#))
 }
 
 #[cfg(test)]
