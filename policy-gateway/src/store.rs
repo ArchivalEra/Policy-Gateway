@@ -1,9 +1,10 @@
+#![allow(dead_code)]
 //! redb — 本地持久化存储
 //!
 //! 将权限表持久化到本地文件，重启不丢失。
 //! 只有安装了 worker-mirror 模块才可省略此文件。
 
-use redb::{Database, TableDefinition, ReadableTable, WriteTransaction};
+use redb::{Database, TableDefinition, ReadableTable};
 use std::path::Path;
 use std::sync::Arc;
 use tokio::sync::Mutex;

@@ -34,6 +34,7 @@ pub struct SignupRequest {
     pub device_id: Option<String>,
     /// 公钥 Hex（MCU 友好 — 直接发送 Ed25519/ECDSA 公钥 hex）
     /// 服务器会将其包装为证书并用 CA 签名。无需 CSR！
+#[allow(unused)]
     pub pubkey: Option<String>,
 }
 
