@@ -66,10 +66,10 @@ fn mcu_guide() -> HelpResponse {
                 expected: Some("证书存到 /certs/device.pem，mTLS 握手后用证书访问互联网".to_string()),
             },
             HelpStep {
-                title: "5. MCU 无法生成 CSR（如纯硬件 ID）".into(),
-                body: "如果 MCU 没有 TLS 能力，可以用管理员手动签发：\n管理员在 /manager 页面点「创建设备证书」，输入设备名和公钥 hex。".into(),
-                cli: None,
-                expected: Some("管理员在管理面板操作，MCU 只存储最终证书".to_string()),
+                title: "5. MCU 无 TLS 能力 — pubkey 直发".into(),
+                body: "如果 MCU 不能生成 CSR，直接发公钥 hex：\ncurl -X POST http://host:8443/api/signup -H 'Content-Type: application/json' -d '{\"pubkey\":\"<ed25519_hex>\",\"hostname\":\"esp32-sensor\"}'".into(),
+                cli: Some("# ESP32: 生成 Ed25519 密钥对后\n# curl -X POST http://host:8443/api/signup \\\n#   -H 'Content-Type: application/json' \\\n#   -d '{\"pubkey\":\"abcdef...\",\"hostname\":\"esp-sensor\"}'".into()),
+                expected: Some("返回 pending_confirm + PEM 证书".to_string()),
             },
         ],
     }
