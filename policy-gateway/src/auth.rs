@@ -174,12 +174,25 @@ impl AuthTable {
         request_id: String,
         requested_bitmap: u64,
     ) {
+        self.add_pending_with_hw(sha256, hostname, request_id, requested_bitmap, EntryStatus::Pending, None, None)
+    }
+
+    pub fn add_pending_with_hw(
+        &mut self,
+        sha256: [u8; 32],
+        hostname: String,
+        request_id: String,
+        requested_bitmap: u64,
+        initial_status: EntryStatus,
+        hw_id: Option<String>,
+        hw_platform: Option<String>,
+    ) {
         let entry = PermissionEntry {
             sha256,
             hostname,
             bitmap: 0,
             requested_bitmap,
-            status: EntryStatus::Pending,
+            status: initial_status,
             mac: None,
             created_at: chrono::Utc::now().timestamp(),
             last_seen: None,
@@ -188,6 +201,10 @@ impl AuthTable {
         };
         self.pending.insert(request_id, sha256);
         self.entries.insert(sha256, entry);
+    }
+
+    pub fn get_mut(&mut self, sha256: &[u8; 32]) -> Option<&mut PermissionEntry> {
+        self.entries.get_mut(sha256)
     }
 
     pub fn approve(&mut self, request_id: &str, bitmap: u64) -> Option<&PermissionEntry> {

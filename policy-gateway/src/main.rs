@@ -41,10 +41,22 @@ async fn main() {
     log::info!("   核心功能: 证书认证 + 上网控制");
     log::info!("   计算模块: 已剥离（通过 Worker 调度或部署 compute-daemon）");
 
+    // 生成/加载 CA 密钥对
+    let (ca_key, ca_cert) = match std::env::var("CA_KEY_PEM") {
+        Ok(k) => (k, std::env::var("CA_CERT_PEM").unwrap_or_default()),
+        Err(_) => crate::tls::generate_ca().unwrap_or_else(|| {
+            log::warn!("⚠️ CA 密钥生成失败，使用临时密钥");
+            ("temp-key".into(), "temp-cert".into())
+        }),
+    };
+    log::info!("🔑 CA 密钥 {}", if std::env::var("CA_KEY_PEM").is_ok() {"已加载"} else {"已生成"});
+
     // 核心状态
     let core = Arc::new(CoreState {
         auth_table: Arc::new(RwLock::new(auth::AuthTable::new())),
         anti_abuse: Arc::new(RwLock::new(anti_abuse::AntiAbuse::new())),
+        ca_key_pem: ca_key,
+        ca_cert_pem: ca_cert,
     });
 
     // 首次启动检测

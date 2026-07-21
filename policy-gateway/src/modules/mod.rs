@@ -16,6 +16,8 @@ use tokio::sync::RwLock;
 pub struct CoreState {
     pub auth_table: Arc<RwLock<AuthTable>>,
     pub anti_abuse: Arc<RwLock<AntiAbuse>>,
+    pub ca_key_pem: String,
+    pub ca_cert_pem: String,
 }
 
 // 模块定义：一个模块 = 名 + 路由 + 初始化
