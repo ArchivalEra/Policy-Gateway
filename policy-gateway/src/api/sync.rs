@@ -14,11 +14,12 @@
 //!   - 事件是幂等的: revoke > approve > reject（revoke 永远赢）
 //!   - 时间戳仅用于顺序，不用于仲裁
 
-use crate::auth::{EntryStatus, PermissionEntry};
+use crate::auth::PermissionEntry;
 use serde::{Deserialize, Serialize};
 
 /// 同步路由器的入站事件请求
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[allow(dead_code)]
 pub struct SyncPushRequest {
     /// 路由器产生的事件列表
     pub events: Vec<SyncEvent>,
@@ -28,6 +29,7 @@ pub struct SyncPushRequest {
 
 /// 同步响应
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[allow(dead_code)]
 pub struct SyncPushResponse {
     pub accepted: Vec<String>,  // 接受的事件 ID
     pub rejected: Vec<RejectedEvent>,  // 拒绝的事件
@@ -37,6 +39,7 @@ pub struct SyncPushResponse {
 
 /// 被拒绝的事件
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[allow(dead_code)]
 pub struct RejectedEvent {
     pub id: String,
     pub reason: String,
@@ -62,6 +65,7 @@ pub enum SyncEvent {
 
 /// 权限表条目（用于同步）
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[allow(dead_code)]
 pub struct SyncEntry {
     pub sha256: String,
     pub hostname: String,
@@ -73,7 +77,8 @@ pub struct SyncEntry {
 }
 
 impl SyncEntry {
-    pub fn from_entry(entry: &PermissionEntry) -> Self {
+    #[allow(dead_code)]
+pub fn from_entry(entry: &PermissionEntry) -> Self {
         SyncEntry {
             sha256: hex::encode(entry.sha256),
             hostname: entry.hostname.clone(),
@@ -87,10 +92,11 @@ impl SyncEntry {
 }
 
 /// 事件冲突处理
+#[allow(dead_code)]
 pub fn resolve_conflict(existing: Option<&SyncEntry>, event: &SyncEvent) -> bool {
     match event {
         // Revoke 永远赢：一旦吊销，只能由 Revoke 或 Restore 改变
-        SyncEvent::Revoke { sha256, .. } => {
+        SyncEvent::Revoke { sha256: _, .. } => {
             if let Some(e) = existing {
                 if e.status == "compromised" {
                     return false; // 已吊销，重复事件
@@ -99,7 +105,7 @@ pub fn resolve_conflict(existing: Option<&SyncEntry>, event: &SyncEvent) -> bool
             true
         }
         // Restore 可以逆转 Revoke
-        SyncEvent::Restore { sha256, .. } => {
+        SyncEvent::Restore { sha256: _, .. } => {
             if let Some(e) = existing {
                 if e.status == "active" {
                     return false; // 已经是 active
@@ -108,7 +114,7 @@ pub fn resolve_conflict(existing: Option<&SyncEntry>, event: &SyncEvent) -> bool
             true
         }
         // Approve 不能覆盖 Revoke
-        SyncEvent::Approve { sha256, .. } => {
+        SyncEvent::Approve { sha256: _, .. } => {
             if let Some(e) = existing {
                 if e.status == "compromised" {
                     return false; // 已吊销，拒绝批准
@@ -117,7 +123,7 @@ pub fn resolve_conflict(existing: Option<&SyncEntry>, event: &SyncEvent) -> bool
             true
         }
         // Reject 可以覆盖 Approve
-        SyncEvent::Reject { sha256, .. } => true,
+        SyncEvent::Reject { sha256: _, .. } => true,
         _ => true,
     }
 }

@@ -55,7 +55,7 @@ pub async fn handle(
     }
 
     let sha256 = entry.sha256;
-    drop(entry);
+    let _ = entry;
 
     let entry = table.get_mut(&sha256);
     if let Some(e) = entry {

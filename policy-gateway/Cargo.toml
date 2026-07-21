@@ -30,6 +30,10 @@ log = "0.4"
 env_logger = "0.11"
 once_cell = "1"
 
+[workspace]
+resolver = "2"
+members = ["vm"]
+
 [profile.release]
 lto = true
 codegen-units = 1
@@ -37,5 +41,3 @@ opt-level = "z"
 strip = true
 panic = "abort"
 
-[workspace]
-members = ["vm"]

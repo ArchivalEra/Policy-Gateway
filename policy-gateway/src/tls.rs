@@ -11,7 +11,6 @@
 use ring::signature::KeyPair;
 use rustls::pki_types::{CertificateDer, PrivateKeyDer, pem::PemObject};
 use rustls::ServerConfig;
-use std::sync::Arc;
 
 /// 计算证书的 SHA256 指纹
 pub fn cert_sha256(cert: &CertificateDer<'_>) -> [u8; 32] {
@@ -40,7 +39,7 @@ pub fn pem_sha256(pem: &str) -> [u8; 32] {
 pub fn generate_ca() -> Option<(String, String)> {
     use ring::rand::SystemRandom;
     use ring::signature::Ed25519KeyPair;
-    use ring::digest::{digest, SHA256};
+    
 
     let rng = SystemRandom::new();
     let pkcs8 = Ed25519KeyPair::generate_pkcs8(&rng).ok()?;
@@ -61,7 +60,7 @@ pub fn generate_ca() -> Option<(String, String)> {
     );
 
     // 签名证书
-    let signature = keypair.sign(&cert_body);
+    let _signature = keypair.sign(&cert_body);
     let cert_pem = format!(
         "-----BEGIN CERTIFICATE-----\n{}\n-----END CERTIFICATE-----",
         base64_encode(&cert_body)
@@ -72,7 +71,7 @@ pub fn generate_ca() -> Option<(String, String)> {
 
 /// 构造 CA 证书体（简化版，不含完整 X.509 结构）
 fn build_ca_cert_body(public_key: &[u8], subject: &[u8]) -> Vec<u8> {
-    use ring::digest::{digest, SHA256};
+    
     let mut body = Vec::new();
     body.extend_from_slice(b"CA:v1\n");
     body.extend_from_slice(subject);
@@ -113,6 +112,7 @@ pub fn parse_csr(csr_pem: &str) -> Option<CsrInfo> {
 /// 用 CA 签发证书
 /// 返回 PEM 格式的客户端证书
 /// 构建证书 body（sign_csr 和 verify_ca_signed 共用）
+#[allow(dead_code)]
 fn build_cert_body(serial: &str, subject: &str, role: &str, pubkey_hex: &str, not_before: i64, not_after: i64) -> String {
     format!(
         "serial:{}\nsubject:{}\nrole:{}\npubkey:{}\nnot_before:{}\nnot_after:{}",
@@ -145,6 +145,7 @@ pub fn sign_csr(csr_info: &CsrInfo, ca_key_pem: &str, role: &str) -> Option<Stri
 }
 
 /// 验证证书是否是 CA 签发的
+#[allow(dead_code)]
 pub fn verify_ca_signed(cert_pem: &str, ca_public_key: &[u8]) -> bool {
     let lines: Vec<&str> = cert_pem.lines().collect();
     let mut signature_hex = String::new();
@@ -188,6 +189,7 @@ fn derive_key(token: &str) -> [u8; 32] {
 }
 
 /// 加密 CA 私钥 (AES-256-GCM)
+#[allow(dead_code)]
 pub fn encrypt_ca_key(ca_key_pem: &str, token: &str) -> Option<Vec<u8>> {
     let key = derive_key(token);
     use ring::aead::{AES_256_GCM, Nonce, LessSafeKey, UnboundKey, Aad};
@@ -211,6 +213,7 @@ pub fn encrypt_ca_key(ca_key_pem: &str, token: &str) -> Option<Vec<u8>> {
 }
 
 /// 解密 CA 私钥
+#[allow(dead_code)]
 pub fn decrypt_ca_key(encrypted: &[u8], token: &str) -> Option<String> {
     if encrypted.len() < 12 + 16 { return None; }
     let key = derive_key(token);
@@ -255,6 +258,7 @@ fn extract_pkcs8_from_pem(pem: &str) -> Option<Vec<u8>> {
 //  mTLS ServerConfig (已有，保留)
 // ============================================================
 
+#[allow(dead_code)]
 pub fn tls_config(cert_pem: &str, key_pem: &str) -> ServerConfig {
     let certs = CertificateDer::pem_file_iter(cert_pem)
         .expect("无法读取服务端证书")

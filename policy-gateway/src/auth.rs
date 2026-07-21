@@ -71,6 +71,7 @@ pub fn grantable_permissions(is_root: bool) -> Vec<(u8, &'static str)> {
 }
 
 /// 返回当前目录中所有权限的可读名称列表
+#[allow(dead_code)]
 pub fn list_permission_names() -> Vec<&'static str> {
     permission_catalog().iter().map(|(_, name, _, _)| *name).collect()
 }

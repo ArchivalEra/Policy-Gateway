@@ -42,6 +42,7 @@ pub struct ApproveRequest {
     pub request_id: String,
     pub action: String,      // "approve" | "reject"
     pub bitmap: Option<u64>, // 批准时设置的权限位图
+    #[allow(dead_code)]
     pub reason: Option<String>,
     pub token: Option<String>,
 }
