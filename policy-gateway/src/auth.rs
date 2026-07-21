@@ -79,6 +79,7 @@ pub fn list_permission_names() -> Vec<&'static str> {
 pub enum EntryStatus {
     Active,
     Pending,
+    PendingConfirm,
     Compromised,
     Rejected,
 }
@@ -88,6 +89,7 @@ impl std::fmt::Display for EntryStatus {
         match self {
             EntryStatus::Active => write!(f, "active"),
             EntryStatus::Pending => write!(f, "pending"),
+            EntryStatus::PendingConfirm => write!(f, "pending_confirm"),
             EntryStatus::Compromised => write!(f, "compromised"),
             EntryStatus::Rejected => write!(f, "rejected"),
         }
@@ -105,6 +107,8 @@ pub struct PermissionEntry {
     pub created_at: i64,
     /// 最后一次访问时间（用于 GC 判断“注册后未登录”）
     pub last_seen: Option<i64>,
+    pub hw_id: Option<String>,
+    pub hw_platform: Option<String>,
 }
 
 /// 权限表 — 线程安全，支持并发读写
@@ -179,6 +183,8 @@ impl AuthTable {
             mac: None,
             created_at: chrono::Utc::now().timestamp(),
             last_seen: None,
+            hw_id: None,
+            hw_platform: None,
         };
         self.pending.insert(request_id, sha256);
         self.entries.insert(sha256, entry);
@@ -418,6 +424,8 @@ mod tests {
             mac: None,
             created_at: chrono::Utc::now().timestamp() - 14 * 86400,
             last_seen: None,
+            hw_id: None,
+            hw_platform: None,
         };
         t.entries.insert(h, old_entry);
         assert_eq!(t.len(), 1);
@@ -442,6 +450,8 @@ mod tests {
             mac: None,
             created_at: chrono::Utc::now().timestamp() - 60,
             last_seen: None,
+            hw_id: None,
+            hw_platform: None,
         };
         t.entries.insert(h, recent);
         let report = t.gc();
@@ -460,6 +470,8 @@ mod tests {
             requested_bitmap: 0x01,
             status: EntryStatus::Pending,
             last_seen: None,
+            hw_id: None,
+            hw_platform: None,
             mac: None,
             created_at: chrono::Utc::now().timestamp() - 48 * 3600, // 48h 前
         };
