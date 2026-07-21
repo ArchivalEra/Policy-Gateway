@@ -204,7 +204,7 @@ async fn cli_mode(args: &[String]) {
             }
         },
         Some("vm") => { vm::cli(&args[1..]); }
-                Some("init") => {
+        Some("init") => {
             println!("policy-gateway first setup");
             println!();
 
