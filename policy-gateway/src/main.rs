@@ -71,6 +71,7 @@ async fn main() {
             // 尝试加载 seed.json
             let seed_paths = [
                 "/etc/config/policy-gateway.seed.json",
+                "/etc/config/policy-gateway/seed.json",
                 "/etc/policy-gateway/seed.json",
                 "/usr/share/policy-gateway/seed.json",
                 "./deploy/seed.json",
@@ -224,7 +225,7 @@ async fn cli_mode(args: &[String]) {
                 "entries": [{
                     "sha256": hex::encode(sha256),
                     "hostname": "initial root",
-                    "bitmap": "FF",
+                    "bitmap": 255,
                     "status": "active"
                 }]
             });
