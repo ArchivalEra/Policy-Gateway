@@ -19,6 +19,8 @@ pub fn portal_router(state: std::sync::Arc<CoreState>) -> Router {
         .route("/manager", get(crate::api::manager::handle_page))
         .route("/api/manager/approve", post(crate::api::manager::handle_approve))
         .route("/api/cert-confirm", post(crate::api::confirm::handle))
+        .route("/permissions", get(crate::api::permissions::handle_page))
+        .route("/api/manager/pending", get(crate::api::manager::handle_pending_json))
         .with_state(state)
 }
 

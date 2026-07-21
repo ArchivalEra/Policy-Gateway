@@ -197,3 +197,27 @@ pub async fn handle_approve(
         }))),
     }
 }
+
+/// JSON 待审批列表（MCU/headless 用）
+pub async fn handle_pending_json(
+    State(state): State<Arc<AppState>>,
+    axum::extract::Query(params): axum::extract::Query<std::collections::HashMap<String, String>>,
+) -> Result<Json<serde_json::Value>, StatusCode> {
+    let token = params.get("token").map(|s| s.as_str()).unwrap_or("");
+    if !check_auth(token) {
+        return Err(StatusCode::UNAUTHORIZED);
+    }
+    let table = state.auth_table.read().await;
+    let pending = table.list_pending();
+    let entries: Vec<serde_json::Value> = pending.into_iter().map(|(rid, e)| {
+        serde_json::json!({
+            "request_id": rid,
+            "hostname": e.hostname,
+            "sha256": hex::encode(e.sha256),
+            "requested_bitmap": format!("{:x}", e.requested_bitmap),
+            "hw_platform": e.hw_platform,
+            "status": e.status.to_string(),
+        })
+    }).collect();
+    Ok(Json(serde_json::json!({ "count": entries.len(), "entries": entries })))
+}

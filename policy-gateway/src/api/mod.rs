@@ -3,3 +3,4 @@ pub mod status;
 pub mod manager;
 pub mod sync;
 pub mod confirm;
+pub mod permissions;
