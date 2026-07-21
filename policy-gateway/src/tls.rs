@@ -153,7 +153,7 @@ pub fn verify_ca_signed(cert_pem: &str, ca_public_key: &[u8]) -> bool {
     for line in &lines {
         if line.starts_with("signature:") {
             signature_hex = line.trim_start_matches("signature:").trim().to_string();
-        } else if !line.starts_with("-----") && !line.starts_with("signature:") {
+        } else if !line.starts_with("-----") && !line.starts_with("signature:") && !line.starts_with("issuer:") {
             body_lines.push(*line);
         }
     }
