@@ -1,0 +1,55 @@
+name: CI
+
+on:
+  push:
+    branches: ['*']
+  pull_request:
+    branches: [main]
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rust-src
+      - name: Cache cargo
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/bin/
+            ~/.cargo/registry/index/
+            ~/.cargo/registry/cache/
+            ~/.cargo/git/db/
+            target/
+          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+      - name: Test
+        working-directory: policy-gateway
+        run: cargo test --workspace
+      - name: Build (release)
+        working-directory: policy-gateway
+        run: cargo build --release
+
+  mipsel-cross:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install Rust (nightly + rust-src)
+        uses: dtolnay/rust-toolchain@nightly
+        with:
+          components: rust-src
+          targets: mipsel-unknown-linux-musl
+      - name: Install zig
+        uses: goto-bus-stop/setup-zig@v2
+      - name: Install cargo-zigbuild
+        run: cargo install cargo-zigbuild
+      - name: Cross-compile (mipsel)
+        working-directory: policy-gateway
+        run: cargo zigbuild --target mipsel-unknown-linux-musl --release
+      - name: Check binary
+        run: file policy-gateway/target/mipsel-unknown-linux-musl/release/policy-gateway
