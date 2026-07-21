@@ -12,6 +12,7 @@
 mod tls;
 mod auth;
 mod api;
+mod recovery;
 mod anti_abuse;
 pub mod vm;  // VM — 始终包含，核心组件
 pub mod modules;

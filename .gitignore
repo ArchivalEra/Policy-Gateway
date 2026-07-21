@@ -52,3 +52,7 @@ policy-gateway/deploy/root-key.pem
 policy-gateway/deploy/root-cert.pem
 policy-gateway/deploy/manager-token.txt
 policy-gateway/deploy/seed.json
+# pre-do 本地流程
+pre-do.sh
+# pre-do 本地进度
+progress/
