@@ -855,3 +855,165 @@ chrome://flags/#enable-quic
 | 沙盒 | 宿主目录隔离，共享库，不建容器 |
 | 许可证 | AGPL-3.0 |
 | nftables 策略 | 事件驱动，仅权限变更时更新 set。流量不经过用户态。QUIC 用 DROP fallback 到 TCP。|
+
+
+---
+
+## 十三、Phase 3.1 探索 — TLS 1.3 复用 + ECH
+
+### 当前 HACK: dangerous_configuration
+
+```
+当前 policy-gateway 使用 rustls dangerous_configuration 跳过客户端证书验证。
+这是一个已知的妥协 — 我们把 mTLS 验证推迟到应用层（查 SHA256 表）。
+理由: 路由器闪存 10MB，无法存储完整 CA 链 + CRL。
+```
+
+### TLS 1.3 复用方案 （0-RTT / Session Resumption）
+
+TLS 1.3 原生支持两种复用机制，可以大幅减少授权设备的认证开销：
+
+```
+机制                     延迟                   服务端状态
+──────────────────────────────────────────────────────────────
+完整握手 (TLS 1.3)       1-RTT (~50ms)         无
+会话恢复 (PSK)           0-RTT (~0ms)          会话票据 (ticket)
+0-RTT (early data)       0-RTT                 会话票据 + 防重放窗口
+```
+
+#### 方案 A: Session Ticket 做权限缓存
+
+```
+设备首次授权:
+  TCP 连接 → TLS 握手 → mTLS 证书 → 查 SHA256 表 → OK
+  → rustls 签发 Session Ticket（嵌入权限位图快照）
+
+设备后续连接:
+  TCP 连接 → TLS 1.3 PSK (0-RTT) → 服务端解密 ticket
+  → 提取缓存的权限位图 → 无需再查表 → 直接放行
+
+优点:
+  - 授权后连接零额外延迟
+  - 服务端无状态（ticket 自包含，加密签发）
+  - rustls 原生支持 (ticketer)
+
+缺点:
+  - Ticket 最长 7 天（大多实现限制）
+  - 权限变更后 Ticket 过期前仍有效（可设置短 TTL 缓解）
+```
+
+#### 方案 B: 0-RTT 携带权限证明
+
+```
+类似方案 A，但客户端可以在 0-RTT 数据中直接发送请求。
+服务端在收到完整 ClientHello 前就开始处理。
+
+适用场景: MCU 传感器定期上报数据
+  → 首次连接: 完整握手 + 证书验证 (200ms)
+  → 后续连接: 0-RTT 数据直接到达服务器 (0ms)
+  → 省掉每次上报的握手延迟
+```
+
+#### rustls 实现方式
+
+```rust
+// 当前: 每次都查 SHA256 表
+fn check_auth(sha256: &[u8; 32]) -> bool {
+    table.get(sha256).is_some_and(|e| e.bitmap & CONNECTOR != 0)
+}
+
+// Phase 3.1: Session Ticket 携带权限快照
+// 设备首次授权后，rustls ticketer 签发 ticket
+// ticket 内嵌: { sha256, bitmap, expiry }
+// 后续连接: ticketer 解密 ticket → 直接权限检查
+
+// 在 rustls ServerConfig 中开启 ticketer:
+let ticketer = rustls::Ticketer::new().unwrap();
+server_config.set_ticketer(ticketer);
+// ticketer 自动处理签发/验证，无需手动代码
+```
+
+### ECH（Encrypted Client Hello）探索
+
+#### 背景
+
+```
+ECH 是 TLS 1.3 的扩展（RFC 8871, 8879）。
+目的: 加密 ClientHello 中的 SNI，防止中间人看到你访问的网站。
+
+ECH + policy-gateway:
+  我们的场景与标准 ECH 相反 — 我们不想隐藏域名，
+  我们想把所有未授权设备的流量集中到 portal。
+  所以 ECH 对我们的核心场景帮助不大。
+```
+
+#### 可能的 ECH 用途
+
+```
+场景: 根证书恢复 Worker 端点
+  ca.example.com/recover
+  → ECH 可以隐藏用户正在访问恢复端点的事实
+  → 但不是核心需求，搁置
+
+场景: 公网 Worker 镜像
+  如果 Worker 镜像了 /manager 端点
+  → ECH 可以防止别人扫描到管理端点
+  → 低优先级
+```
+
+#### ECH 在路由器场景的局限性
+
+```
+① ECH 需要 DNS HTTPS 记录和外部服务端支持
+   → 路由器作为服务端，ECH 需要在 rustls 或 nginx 中实现
+   → rustls 目前不支持 ECH（OpenSSL 1.1.1+ 有实验性支持）
+   
+② MIPS 性能:
+   ECH 需要额外的 HPKE 解密操作
+   对 MT7621 来说，这不是免费的
+   
+③ 我们不需要隐藏 portal 的存在:
+   实际上我们想让未授权设备看到 portal
+   ECH 隐藏了 portal 身份 → 适得其反
+```
+
+**结论**: ECH 对本项目无用，不做。
+
+### TLS 1.3 复用实施计划
+
+```
+Phase 3.1.1: 开启 rustls ticketer
+  → ServerConfig::set_ticketer()
+  → Ticket 有效期 10 分钟（平衡性能与权限实时性）
+  → 权限变更时主动过期 Ticket（通过 custom session store）
+
+Phase 3.1.2: 权限快照嵌入 Ticket
+  → 自定义 SessionStore 实现
+  → ticket 负载: { sha256, bitmap, issued_at }
+  → mTLS 验证后签发 ticket
+
+Phase 3.1.3: MCU 优化
+  → 0-RTT 支持需要客户端也支持
+  → MCU 端 (esp32/STM32): 评估 mbedTLS 的 TLS 1.3 支持
+  → 如果不能 0-RTT，普通 session resumption 也能省 1-RTT
+
+Phase 3.1.4: 混合策略
+  → 新设备: 完整 TLS 握手 → 应用层查表
+  → 已授权设备: 0-RTT + ticket 权限检查
+  → 权限变更: 删除 ticket（强制下次完整握手）
+```
+
+### 与 nftables 事件驱动的关系
+
+```
+TLS 1.3 复用 和 nftables 事件驱动 是互补的:
+
+nftables 负责: 网络层 — 只允许 authorized_ips 的设备联网
+TLS 1.3  负责: 传输层 — 授权设备用 0-RTT 免认证重连
+
+二者结合:
+  ① 设备授权 → nftables 添加 IP → TLS ticket 签发
+  ② 设备断线重连 → TLS 0-RTT → nftables 已放行 → 无缝恢复
+  ③ 权限撤销 → nftables 删除 IP → 设备下次连接被 nftables 拦截
+     → 即使有 TLS ticket 也无法联网（网络层被拦）
+```
