@@ -5,7 +5,7 @@
 //!   ?sha256=<hex>        — 通过证书 SHA256 查询
 
 use axum::extract::{State, Query};
-use axum::Json;
+use axum::{Json, response::Html};
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 
@@ -57,6 +57,40 @@ pub async fn handle(
             reason: None,
         }),
     }
+}
+
+/// GET /signup/status — HTML 状态页面（浏览器用）
+pub async fn handle_html(
+    State(state): State<Arc<AppState>>,
+    Query(q): Query<StatusQuery>,
+) -> Html<String> {
+    let table = state.auth_table.read().await;
+    let (status, hostname) = if let Some(id) = &q.id {
+        table.get_by_request_id(id).map(|e| (e.status.to_string(), e.hostname.clone()))
+            .unwrap_or(("not_found".into(), "—".into()))
+    } else if let Some(hex_str) = &q.sha256 {
+        let sha256 = match hex_decode(hex_str) { Ok(h) => h, Err(_) => return Html("<!DOCTYPE html><html><body><h1>sha256 格式无效</h1></body></html>".into()) };
+        table.get(&sha256).map(|e| (e.status.to_string(), e.hostname.clone()))
+            .unwrap_or(("not_found".into(), "—".into()))
+    } else {
+        ("missing_query".into(), "—".into())
+    };
+    Html(format!(r#"<!DOCTYPE html><html lang="zh"><head><meta charset="UTF-8"><title>申请状态</title><style>
+body{{font-family:sans-serif;max-width:500px;margin:auto;padding:20px}}
+.status{{font-size:24px;padding:20px;border-radius:8px;text-align:center}}
+.active{{background:#d4edda;color:#155724}}
+.pending{{background:#fff3cd;color:#856404}}
+.not_found{{background:#f8d7da;color:#721c24}}
+code{{background:#eee;padding:2px 6px}}
+</style></head><body>
+<h1>申请状态</h1>
+<div class="status {status}">{status}</div>
+<p>设备: <strong>{hostname}</strong></p>
+<p>ID: <code>{id}</code></p>
+<p><a href="/signup">返回申请页面</a> · <a href="/manager">管理面板</a></p>
+</body></html>"#,
+        status = status, hostname = hostname, id = q.id.as_deref().unwrap_or(""),
+    ))
 }
 
 fn hex_decode(s: &str) -> Result<[u8; 32], ()> {

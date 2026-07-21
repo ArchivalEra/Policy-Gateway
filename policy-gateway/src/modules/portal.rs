@@ -16,6 +16,7 @@ pub fn portal_router(state: std::sync::Arc<CoreState>) -> Router {
     Router::new()
         .route("/api/signup", post(crate::api::signup::handle))
         .route("/api/signup/status", get(crate::api::status::handle))
+        .route("/signup/status", get(crate::api::status::handle_html))
         .route("/manager", get(crate::api::manager::handle_page))
         .route("/api/manager/approve", post(crate::api::manager::handle_approve))
         .route("/api/cert-confirm", post(crate::api::confirm::handle))
