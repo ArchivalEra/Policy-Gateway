@@ -109,6 +109,7 @@ pub struct PermissionEntry {
     pub last_seen: Option<i64>,
     pub hw_id: Option<String>,
     pub hw_platform: Option<String>,
+    pub device_id: Option<String>,
 }
 
 /// 权限表 — 线程安全，支持并发读写
@@ -174,7 +175,7 @@ impl AuthTable {
         request_id: String,
         requested_bitmap: u64,
     ) {
-        self.add_pending_with_hw(sha256, hostname, request_id, requested_bitmap, EntryStatus::Pending, None, None)
+        self.add_pending_with_hw(sha256, hostname, request_id, requested_bitmap, EntryStatus::Pending, None, None, None)
     }
 
     pub fn add_pending_with_hw(
@@ -186,6 +187,7 @@ impl AuthTable {
         initial_status: EntryStatus,
         hw_id: Option<String>,
         hw_platform: Option<String>,
+        device_id: Option<String>,
     ) {
         let entry = PermissionEntry {
             sha256,
@@ -198,6 +200,7 @@ impl AuthTable {
             last_seen: None,
             hw_id,
             hw_platform,
+            device_id,
         };
         self.pending.insert(request_id, sha256);
         self.entries.insert(sha256, entry);
@@ -447,6 +450,7 @@ mod tests {
             last_seen: None,
             hw_id: None,
             hw_platform: None,
+            device_id: None,
         };
         t.entries.insert(h, old_entry);
         assert_eq!(t.len(), 1);
@@ -473,6 +477,7 @@ mod tests {
             last_seen: None,
             hw_id: None,
             hw_platform: None,
+            device_id: None,
         };
         t.entries.insert(h, recent);
         let report = t.gc();
@@ -493,6 +498,7 @@ mod tests {
             last_seen: None,
             hw_id: None,
             hw_platform: None,
+            device_id: None,
             mac: None,
             created_at: chrono::Utc::now().timestamp() - 48 * 3600, // 48h 前
         };

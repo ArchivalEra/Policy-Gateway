@@ -30,6 +30,8 @@ pub struct SignupRequest {
     pub hw_id: Option<String>,
     /// 硬件平台: browser, ios, android, windows, linux, esp32, stm32
     pub hw_platform: Option<String>,
+    /// 持久设备 ID（客户端生成的随机 UUID，保护隐私）
+    pub device_id: Option<String>,
 }
 
 #[derive(Serialize)]
@@ -101,7 +103,7 @@ async fn handle_csr(
         }
         // 存入 pending_confirm（跳过审批，CA 签发即可信）
         let bitmap = parse_requested_bitmap(req.requested.as_deref());
-        table.add_pending_with_hw(sha256, req.hostname.clone(), request_id.clone(), bitmap, EntryStatus::PendingConfirm, req.hw_id.clone(), req.hw_platform.clone());
+        table.add_pending_with_hw(sha256, req.hostname.clone(), request_id.clone(), bitmap, EntryStatus::PendingConfirm, req.hw_id.clone(), req.hw_platform.clone(), req.device_id.clone());
     }
 
     log::info!("📝 CA 签发: {} role={} sha256={}", request_id, role, hex::encode(sha256));
