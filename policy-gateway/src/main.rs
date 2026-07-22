@@ -279,8 +279,52 @@ async fn cli_mode(args: &[String]) {
                     println!("✅ 配置已重置");
                     return;
                 }
+                Some("tls") => {
+                    let tls_sub = args.get(3).map(|s| s.as_str());
+                    match tls_sub {
+                        Some("show") => {
+                            println!("{}", toml::to_string_pretty(&cfg.tls_profile).unwrap_or_default());
+                        }
+                        Some("edit") | None => {
+                            let mut http_s = if cfg.tls_profile.allow_http { "y" } else { "n" }.to_string();
+                            crate::config::Config::prompt("允许 HTTP (y/n)", &mut http_s);
+                            cfg.tls_profile.allow_http = http_s == "y" || http_s == "yes" || http_s == "true" || http_s == "1";
+                            let mut t12 = if cfg.tls_profile.allow_tls12 { "y" } else { "n" }.to_string();
+                            crate::config::Config::prompt("允许 TLS 1.2 (y/n)", &mut t12);
+                            cfg.tls_profile.allow_tls12 = t12 == "y" || t12 == "yes" || t12 == "true" || t12 == "1";
+                            let mut t13 = if cfg.tls_profile.allow_tls13 { "y" } else { "n" }.to_string();
+                            crate::config::Config::prompt("允许 TLS 1.3 (y/n)", &mut t13);
+                            cfg.tls_profile.allow_tls13 = t13 == "y" || t13 == "yes" || t13 == "true" || t13 == "1";
+                            let mut quic = if cfg.tls_profile.allow_quic { "y" } else { "n" }.to_string();
+                            crate::config::Config::prompt("允许 QUIC (y/n)", &mut quic);
+                            cfg.tls_profile.allow_quic = quic == "y" || quic == "yes" || quic == "true" || quic == "1";
+                            let mut mtls = if cfg.tls_profile.mtls_enabled { "y" } else { "n" }.to_string();
+                            crate::config::Config::prompt("启用 mTLS (y/n)", &mut mtls);
+                            cfg.tls_profile.mtls_enabled = mtls == "y" || mtls == "yes" || mtls == "true" || mtls == "1";
+                            cfg.save().ok();
+                            println!("✅ TLS 配置已保存");
+                        }
+                        Some("enable") => {
+                            cfg.tls_profile.allow_tls12 = true;
+                            cfg.tls_profile.allow_tls13 = true;
+                            cfg.save().ok();
+                            println!("✅ TLS 1.2 + 1.3 已启用");
+                        }
+                        Some("disable") => {
+                            cfg.tls_profile.allow_tls12 = false;
+                            cfg.tls_profile.allow_tls13 = false;
+                            cfg.save().ok();
+                            println!("✅ TLS 已禁用（仅 HTTP）");
+                        }
+                        _ => {
+                            eprintln!("用法: policy-gateway config tls <edit|show|enable|disable>");
+                            std::process::exit(1);
+                        }
+                    }
+                    return;
+                }
                 _ => {
-                    eprintln!("用法: policy-gateway config <edit|show|reset>");
+                    eprintln!("用法: policy-gateway config <edit|show|reset|tls>");
                     std::process::exit(1);
                 }
             }

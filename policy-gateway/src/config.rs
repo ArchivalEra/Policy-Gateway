@@ -14,6 +14,33 @@
 use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
 
+/// TLS 连接配置文件
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct TlsProfile {
+    /// 允许纯 HTTP（不安全，仅用于调试/局域网）
+    pub allow_http: bool,
+    /// 允许 TLS 1.2
+    pub allow_tls12: bool,
+    /// 允许 TLS 1.3
+    pub allow_tls13: bool,
+    /// 允许 QUIC (HTTP/3)
+    pub allow_quic: bool,
+    /// 是否启用客户端证书验证 (mTLS)
+    pub mtls_enabled: bool,
+}
+
+impl Default for TlsProfile {
+    fn default() -> Self {
+        Self {
+            allow_http: true,
+            allow_tls12: true,
+            allow_tls13: true,
+            allow_quic: false,
+            mtls_enabled: false,
+        }
+    }
+}
+
 /// 完整配置
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Config {
@@ -35,6 +62,8 @@ pub struct Config {
     pub tls_cert: Option<String>,
     /// TLS 密钥路径 (可选)
     pub tls_key: Option<String>,
+    /// TLS 连接配置
+    pub tls_profile: TlsProfile,
 }
 
 impl Default for Config {
@@ -49,6 +78,7 @@ impl Default for Config {
             language: "zh".into(),
             tls_cert: None,
             tls_key: None,
+            tls_profile: TlsProfile::default(),
         }
     }
 }
@@ -84,6 +114,13 @@ impl Config {
         if let Ok(v) = std::env::var("PG_ENABLE_HTML") { self.enable_html = v == "true" || v == "1"; }
         if let Ok(v) = std::env::var("PG_DB_PATH") { self.db_path = v; }
         if let Ok(v) = std::env::var("PG_LANGUAGE") { self.language = v; }
+        if let Ok(v) = std::env::var("PG_TLS_CERT") { self.tls_cert = Some(v); }
+        if let Ok(v) = std::env::var("PG_TLS_KEY") { self.tls_key = Some(v); }
+        if let Ok(v) = std::env::var("PG_ALLOW_HTTP") { self.tls_profile.allow_http = v == "true" || v == "1"; }
+        if let Ok(v) = std::env::var("PG_ALLOW_TLS12") { self.tls_profile.allow_tls12 = v == "true" || v == "1"; }
+        if let Ok(v) = std::env::var("PG_ALLOW_TLS13") { self.tls_profile.allow_tls13 = v == "true" || v == "1"; }
+        if let Ok(v) = std::env::var("PG_ALLOW_QUIC") { self.tls_profile.allow_quic = v == "true" || v == "1"; }
+        if let Ok(v) = std::env::var("PG_MTLS_ENABLED") { self.tls_profile.mtls_enabled = v == "true" || v == "1"; }
         self
     }
 
@@ -114,9 +151,31 @@ impl Config {
         self.enable_html = html_s == "true" || html_s == "1";
         Config::prompt("数据库路径", &mut self.db_path);
         Config::prompt("语言 (zh/en)", &mut self.language);
+        println!();
+        println!("--- TLS 连接配置 ---");
+        let mut http_s = if self.tls_profile.allow_http { "y" } else { "n" }.to_string();
+        Config::prompt("允许 HTTP (y/n)", &mut http_s);
+        self.tls_profile.allow_http = http_s == "y" || http_s == "yes" || http_s == "true" || http_s == "1";
+        let mut t12 = if self.tls_profile.allow_tls12 { "y" } else { "n" }.to_string();
+        Config::prompt("允许 TLS 1.2 (y/n)", &mut t12);
+        self.tls_profile.allow_tls12 = t12 == "y" || t12 == "yes" || t12 == "true" || t12 == "1";
+        let mut t13 = if self.tls_profile.allow_tls13 { "y" } else { "n" }.to_string();
+        Config::prompt("允许 TLS 1.3 (y/n)", &mut t13);
+        self.tls_profile.allow_tls13 = t13 == "y" || t13 == "yes" || t13 == "true" || t13 == "1";
+        let mut quic = if self.tls_profile.allow_quic { "y" } else { "n" }.to_string();
+        Config::prompt("允许 QUIC (y/n)", &mut quic);
+        self.tls_profile.allow_quic = quic == "y" || quic == "yes" || quic == "true" || quic == "1";
+        let mut mtls = if self.tls_profile.mtls_enabled { "y" } else { "n" }.to_string();
+        Config::prompt("启用 mTLS 客户端证书验证 (y/n)", &mut mtls);
+        self.tls_profile.mtls_enabled = mtls == "y" || mtls == "yes" || mtls == "true" || mtls == "1";
+        if self.tls_profile.mtls_enabled {
+            Config::prompt("TLS 证书路径", self.tls_cert.get_or_insert(String::new()));
+            Config::prompt("TLS 密钥路径", self.tls_key.get_or_insert(String::new()));
+        }
     }
 
-    fn prompt(label: &str, value: &mut String) {
+    /// 交互式提示（公开，用于 CLI 子命令）
+    pub fn prompt(label: &str, value: &mut String) {
         use std::io::{stdin, stdout, Write};
         print!("  {} [{}]: ", label, value);
         stdout().flush().ok();

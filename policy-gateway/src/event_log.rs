@@ -11,7 +11,6 @@
 
 use chrono::Utc;
 use serde::{Deserialize, Serialize};
-use std::collections::HashMap;
 
 /// 事件类型
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
