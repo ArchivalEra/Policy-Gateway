@@ -56,6 +56,7 @@ MANAGER_TOKEN=test cargo run
 | 用户手册 | [`policy-gateway/docs/USER_GUIDE.md`](../policy-gateway/docs/USER_GUIDE.md) |
 | 交叉编译 | [`policy-gateway/docs/CROSS_COMPILE.md`](../policy-gateway/docs/CROSS_COMPILE.md) |
 | 维护规章 | [`policy-gateway/docs/MAINTENANCE.md`](../policy-gateway/docs/MAINTENANCE.md) |
+| 模块指南 | [`policy-gateway/docs/MODULE_GUIDE.md`](../policy-gateway/docs/MODULE_GUIDE.md) |
 | MCU 教程 | 运行后访问 `/api/help?topic=mcu` |
 | Worker 镜像 | [`docs/PHASE2.8.md`](../policy-gateway/docs/PHASE2.8.md) |
 
