@@ -201,6 +201,13 @@ async fn start_server(serve_html: bool) {
     log::info!("🌐 监听 {addr} — 设备可通过此端口访问 /signup");
     log::info!("   设备无证书时只能访问 /signup（由 nftables REDIRECT 强制）");
 
+    let quic_config = crate::config::Config::load().tls_profile.allow_quic;
+    if quic_config {
+        log::warn!("⚠️ QUIC 支持需要安装 quic_optimized 模块");
+        log::warn!("   当前 nftables 规则会拦截 UDP 443 (QUIC → TCP fallback)");
+        log::warn!("   安装模块后请手动删除此规则或由模块接管");
+    }
+
     // TODO Phase 1: 添加 mTLS + nftables captive portal
     let listener = tokio::net::TcpListener::bind(addr).await.unwrap();
     axum::serve(listener, app).await.unwrap();
