@@ -20,6 +20,7 @@ pub mod store;  // redb 持久化
 pub mod event_log;  // 时间戳事件系统
 pub mod config;  // 统一配置
 pub mod lang;  // 国际化
+pub mod nft;  // nftables 规则管理
 
 /// 共享状态别名（api 模块中使用）
 pub type AppState = modules::CoreState;
@@ -197,6 +198,20 @@ async fn start_server(serve_html: bool) {
         }
     });
 
+    // nftables 自动部署
+    log::info!("🛡️  部署 nftables 规则...");
+    match crate::nft::deploy() {
+        Ok(_) => log::info!("✅ nftables 双表已部署"),
+        Err(e) => log::warn!("⚠️  nftables 部署失败: {}（如非 OpenWrt 环境可忽略）", e),
+    }
+
+    // 注册退出清理
+    let orig_hook = std::panic::take_hook();
+    std::panic::set_hook(Box::new(move |info| {
+        let _ = crate::nft::cleanup();
+        orig_hook(info);
+    }));
+
     let addr = "0.0.0.0:8443";
     log::info!("🌐 监听 {addr} — 设备可通过此端口访问 /signup");
     log::info!("   设备无证书时只能访问 /signup（由 nftables REDIRECT 强制）");
@@ -208,9 +223,29 @@ async fn start_server(serve_html: bool) {
         log::warn!("   安装模块后请手动删除此规则或由模块接管");
     }
 
-    // TODO Phase 1: 添加 mTLS + nftables captive portal
-    let listener = tokio::net::TcpListener::bind(addr).await.unwrap();
-    axum::serve(listener, app).await.unwrap();
+    // TLS 监听器: 如果配置了证书则启动
+    let config = crate::config::Config::load();
+    let has_tls = config.tls_cert.as_ref().and_then(|c| {
+        let exists = std::path::Path::new(c).exists();
+        if !exists { log::warn!("⚠️ TLS 证书路径不存在: {}", c); }
+        Some(exists)
+    }).unwrap_or(false);
+
+    if has_tls && !config.tls_profile.allow_http {
+        log::info!("🔒 TLS 模式 — 仅 HTTPS");
+        log::warn!("⚠️   TLS 监听器需要 hyper-util 编译支持，当前版本仅 HTTP");
+        log::warn!("   运行 policy-gateway init 生成自签名证书后配置 tls_cert/tls_key");
+        // TODO Phase 3.3: 用 hyper-util + tokio-rustls 实现完整 TLS
+        // 参看 docs/TLS.md 了解当前限制
+        let listener = tokio::net::TcpListener::bind(addr).await.unwrap();
+        axum::serve(listener, app).await.unwrap();
+    } else {
+        if has_tls && config.tls_profile.allow_http {
+            log::info!("🔒 TLS 证书已加载，同时监听 HTTP + HTTPS (TLS 待完整实现)");
+        }
+        let listener = tokio::net::TcpListener::bind(addr).await.unwrap();
+        axum::serve(listener, app).await.unwrap();
+    }
 }
 
 /// CLI 子命令

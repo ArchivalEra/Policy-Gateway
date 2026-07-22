@@ -1,0 +1,25 @@
+name = "policy-gateway-vm-worker"
+main = "index.js"
+compatibility_date = "2026-07-21"
+
+# KV 存储
+[[kv_namespaces]]
+binding = "RECOVERY"
+id = ""  # 创建后填写
+preview_id = ""
+
+[[kv_namespaces]]
+binding = "CONFIG"
+id = ""
+preview_id = ""
+
+# Routes
+routes = [
+  { pattern = "recover", zone_id = "" },          # /recover
+  { pattern = "api/recover/*", zone_id = "" },    # /api/recover/*
+]
+
+# 环境变量
+[vars]
+RECOVERY_SALT = ""
+RECOVERY_TOKEN = ""

@@ -799,6 +799,7 @@ dependencies = [
  "chrono",
  "env_logger",
  "hex",
+ "hyper",
  "log",
  "once_cell",
  "redb",
@@ -808,6 +809,7 @@ dependencies = [
  "serde",
  "serde_json",
  "tokio",
+ "tokio-rustls",
  "toml",
  "tower",
  "tower-http",
@@ -1211,6 +1213,16 @@ dependencies = [
  "proc-macro2",
  "quote",
  "syn 2.0.119",
+]
+
+[[package]]
+name = "tokio-rustls"
+version = "0.26.4"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "1729aa945f29d91ba541258c8df89027d5792d85a8841fb65e8bf0f4ede4ef61"
+dependencies = [
+ "rustls",
+ "tokio",
 ]
 
 [[package]]

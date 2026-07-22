@@ -1,0 +1,75 @@
+#!/bin/sh /etc/rc.common
+# policy-gateway — 证书认证 + 上网控制网关
+#
+# ImmortalWrt / OpenWrt procd init script
+# 安装: 放入 /etc/init.d/policy-gateway
+#   chmod +x /etc/init.d/policy-gateway
+#   service policy-gateway enable
+#   service policy-gateway start
+
+USE_PROCD=1
+START=95   # 在网络和防火墙之后启动
+STOP=10
+
+NAME=policy-gateway
+PROG=/usr/bin/policy-gateway
+
+start_service() {
+    # 检查配置文件
+    local config_file="/etc/config/policy-gateway/config.toml"
+    [ -f "$config_file" ] || {
+        config_file="/root/.policy-gateway/config.toml"
+    }
+
+    # 检查可执行文件
+    [ -x "$PROG" ] || {
+        echo "错误: $PROG 不存在或不可执行"
+        return 1
+    }
+
+    procd_open_instance
+    procd_set_param command "$PROG" serve
+    procd_set_param env "MANAGER_TOKEN" "$(get_manager_token)"
+    procd_set_param env "RUST_LOG" "info"
+    procd_set_param respawn                                     # 崩溃自动重启
+    procd_set_param stdout 1                                    # 日志到 stdout
+    procd_set_param stderr 1
+    procd_set_param pidfile /var/run/policy-gateway.pid
+    procd_close_instance
+
+    echo "✅ policy-gateway 服务已启动"
+}
+
+stop_service() {
+    # 清理 nftables 规则
+    nft delete table inet pg_pre 2>/dev/null || true
+    nft delete table ip pg_nat 2>/dev/null || true
+    echo "✅ nftables 规则已清理, 服务已停止"
+}
+
+service_triggers() {
+    procd_add_reload_trigger "policy-gateway"
+}
+
+reload_service() {
+    stop
+    start
+}
+
+get_manager_token() {
+    # 从 seed.json 读取 token
+    local seed="/etc/config/policy-gateway/seed.json"
+    [ -f "$seed" ] || seed="/etc/config/policy-gateway.seed.json"
+    [ -f "$seed" ] || seed="/etc/policy-gateway/seed.json"
+    [ -f "$seed" ] || return
+
+    # 尝试用 jsonfilter 解析 (OpenWrt 内置)
+    command -v jsonfilter >/dev/null 2>&1 && {
+        jsonfilter -i "$seed" -e '@.manager_token' 2>/dev/null
+        return
+    }
+
+    # 备用: grep 方式
+    grep -o '"manager_token"[[:space:]]*:[[:space:]]*"[^"]*"' "$seed" 2>/dev/null | \
+        sed 's/.*"manager_token"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/'
+}

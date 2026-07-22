@@ -70,33 +70,32 @@ fi
 # --- Init script ---
 echo ""
 echo "=== init.d 服务 ==="
-cat > "$INIT_DIR/policy-gateway" << 'INIT'
+if [ -f "$SCRIPT_DIR/policy-gateway.init" ]; then
+    cp "$SCRIPT_DIR/policy-gateway.init" "$INIT_DIR/policy-gateway"
+else
+    # 内嵌备用
+    cat > "$INIT_DIR/policy-gateway" << 'INIT'
 #!/bin/sh /etc/rc.common
-
-START=99
-STOP=10
 USE_PROCD=1
-
+START=95
+STOP=10
+NAME=policy-gateway
+PROG=/usr/bin/policy-gateway
 start_service() {
     procd_open_instance
-    procd_set_param command /usr/sbin/policy-gateway
-    procd_set_param respawn 3600 5 0
+    procd_set_param command "$PROG" serve
+    procd_set_param env RUST_LOG info
+    procd_set_param respawn
     procd_set_param stdout 1
     procd_set_param stderr 1
     procd_close_instance
-
-    # Touch watchdog so VM knows we're alive
-    touch /tmp/.policy-gateway-running
 }
-
 stop_service() {
-    rm -f /tmp/.policy-gateway-running
-}
-
-service_triggers() {
-    procd_add_reload_trigger "policy-gateway"
+    nft delete table inet pg_pre 2>/dev/null || true
+    nft delete table ip pg_nat 2>/dev/null || true
 }
 INIT
+fi
 chmod 755 "$INIT_DIR/policy-gateway"
 /etc/init.d/policy-gateway enable 2>/dev/null || true
 info "服务注册: $INIT_DIR/policy-gateway"
