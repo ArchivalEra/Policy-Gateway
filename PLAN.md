@@ -9,6 +9,18 @@
 
 ## 一、架构方案
 
+### 核心冻结线 (Phase 3.4)
+
+```
+核心权限表: HashMap<[u8;32], PermissionEntry> — 永不变
+持久化后端: redb 单文件                       — 永不变
+降级模式:  纯内存（redb 不可用时自动）         — 永不变
+
+所有存储拓展 → storage-more 模块（通过 bit claim 注册）
+bit 0-2: 核心保留 · bit 3+: 模块声明
+模块不可用时其 bit 自动锁定，已有证书不受影响
+```
+
 ### 上网控制：不碰 iptables，用接入门户（Captive Portal）
 
 之前的设计是用 iptables 每个设备一条规则来拦网——这会让 MT7621 的**硬件 NAT 加速失效**，NAT 性能从 ~900Mbps 掉到 ~300Mbps。

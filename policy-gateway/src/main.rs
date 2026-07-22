@@ -109,6 +109,29 @@ async fn start_server(serve_html: bool) {
         }
     }
 
+    // 模块加载
+    {
+        let mut registry = modules::ModuleRegistry::new();
+
+        // 尝试加载 storage-more 模块
+        let cfg = crate::config::Config::load();
+        let storage_backend = cfg.storage_backend.clone();
+        drop(cfg);
+
+        let sm = modules::storage_more::StorageMore::new(
+            None, // path
+            if storage_backend == "dir" { Some("dir") } else { None },
+        );
+        match registry.register(Box::new(sm)) {
+            Ok(_) => log::info!("📦 storage-more: bit 3,4 已注册"),
+            Err(e) => log::warn!("📦 storage-more: {} — bit 3,4 已锁定", e),
+        }
+
+        log::info!("🔒 锁定权限位: 活动 {:?}, 锁定 {} 个",
+            registry.active_bits(),
+            registry.locked_bits().len());
+    }
+
     // 首次启动检测
     {
         // 如果 MANAGER_TOKEN 未设置，尝试从 seed.json 读取

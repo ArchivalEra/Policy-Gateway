@@ -7,6 +7,7 @@
 | 模块 | 二进制 | 位置 | 说明 |
 |------|--------|------|------|
 | **portal**（必需） | `policy-gateway` | 闪存 | 认证门户 + CA 引擎 + 权限表 |
+| **storage-more**（可选） | `policy-gateway` | 闪存/USB/S3 | 扩展存储后端 (bit 3+): 自定义路径 / S3 / tmpfs |
 | **vm**（前置依赖） | `policy-gateway-vm` | 闪存 | 主程序快照/回滚，独立二进制 |
 
 安装顺序: `policy-gateway-vm` → `policy-gateway`。
