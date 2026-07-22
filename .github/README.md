@@ -6,7 +6,7 @@
 [![AGPL-3.0](https://img.shields.io/badge/license-AGPL--3.0-blue)](LICENSE)
 ![Rust](https://img.shields.io/badge/rust-1.96+-orange)
 
-[📖 中文版](README.zh.md)
+[📖 中文版](https://github.com/ArchivalEra/Worker-Router-Gateway/blob/main/README.zh.md)
 
 ```
 Device → CSR → CA sign(Ed25519) → Client confirm → Internet access
