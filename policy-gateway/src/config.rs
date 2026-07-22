@@ -129,25 +129,8 @@ impl Config {
     }
 }
 
-/// 配置文件路径
+/// 配置文件路径 (~/.policy-gateway/config.toml)
 fn config_path() -> Option<PathBuf> {
-    #[cfg(target_os = "linux")]
-    {
-        let home = std::env::var("HOME").ok()?;
-        Some(PathBuf::from(home).join(".policy-gateway").join("config.toml"))
-    }
-    #[cfg(target_os = "macos")]
-    {
-        let home = std::env::var("HOME").ok()?;
-        Some(PathBuf::from(home).join(".policy-gateway").join("config.toml"))
-    }
-    #[cfg(target_os = "windows")]
-    {
-        let home = std::env::var("USERPROFILE").ok()?;
-        Some(PathBuf::from(home).join(".policy-gateway").join("config.toml"))
-    }
-    #[cfg(not(any(target_os = "linux", target_os = "macos", target_os = "windows")))]
-    {
-        None
-    }
+    let home = std::env::var("HOME").ok()?;
+    Some(PathBuf::from(home).join(".policy-gateway").join("config.toml"))
 }
