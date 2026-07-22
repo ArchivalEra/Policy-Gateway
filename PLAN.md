@@ -761,16 +761,27 @@ Phase 3.2    TLS 框架 + nftables 自动部署 + procd    ✅
 
 ```
 零耦合:
-  App <── HTTP JSON ──> policy-gateway API
-  App 不需要任何额外服务端支持
-  所有功能通过现有 API 端点实现
+  App ──调用 CLI──> policy-gateway / pg
+  App 不需要额外服务端支持
+  所有功能通过 CLI 实现
 
-需要新增的 API (可选):
-  GET  /api/devices           — 已授权设备列表 (含在线状态)
-  GET  /api/devices/:sha256   — 单个设备详情
-  POST /api/devices/:sha256/revoke — 吊销
-  以上 API 在 Phase 3.4 之前不存在，不影响 App 基础功能
-  (App 首版可暂时用 /api/manager/pending + /api/signup/status 凑合)
+架构:
+  App (Dart/Flutter)
+    ↓ 调用本机 Shell
+  policy-gateway / pg CLI
+    ↓ HTTP JSON
+  policy-gateway API 服务 (路由器/本地)
+
+不需要新增 API:
+  App 直接调用:
+    pg status                   健康检查
+    pg pending                  待审批列表
+    pg approve <id>             批准
+    pg reject <id>              驳回
+    pg cert sign <csr|pubkey>   申请证书
+    pg cert status <sha256>     查询证书
+
+  权限校验由 CLI 的 PG_TOKEN 环境变量完成
 ```
 
 ### 文件结构
