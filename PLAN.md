@@ -701,11 +701,17 @@ Phase 3.2    TLS 框架 + nftables 自动部署 + procd    ✅
 ### 搁置
 
 ```
-- vm-mod（模块版本管理器）
-- redb 持久化
+- redb 持久化 (overlayfs 兼容)
 - 权限动态增长
 - 位图编辑器
 - 心跳超时断网（与 MIPS 理念相悖）
+```
+
+### 已取消
+
+```
+- vm-mod-worker: Worker 端不需要模块管理器。模块直接部署 TypeScript 到 Pages。
+- vm-mod（独立二进制）: 模块管理合并入 VM，VM 只负责主程序，模块由 vm-mod 统一管理。
 ```
 
 ## 十六、Phase 4.0 — Dart 跨平台 App

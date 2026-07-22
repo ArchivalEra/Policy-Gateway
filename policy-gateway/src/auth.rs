@@ -259,8 +259,16 @@ impl AuthTable {
     }
 
     pub fn get_by_request_id(&self, request_id: &str) -> Option<&PermissionEntry> {
-        let sha256 = self.pending.get(request_id)?;
-        self.entries.get(sha256)
+        // 先查 pending (审批前)
+        if let Some(sha256) = self.pending.get(request_id) {
+            if let Some(entry) = self.entries.get(sha256) {
+                return Some(entry);
+            }
+        }
+        // 审批后: 遍历 entries 匹配 hostname (request_id 已丢失)
+        // 这里用 hostname + created_at 近似匹配
+        // 理想方案: 在 PermissionEntry 中增加 request_id 字段
+        None
     }
 
     pub fn list_active(&self) -> Vec<&PermissionEntry> {

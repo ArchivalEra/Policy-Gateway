@@ -83,14 +83,19 @@ async fn start_server(serve_html: bool) {
     });
 
     // 初始化 redb 持久化
-    let db_path = "/etc/config/policy-gateway/auth.redb";
-    // 确保目录存在
-    if let Err(e) = std::fs::create_dir_all("/etc/config/policy-gateway") {
-        log::warn!("⚠️  无法创建数据目录: {}（权限表将在内存中运行）", e);
-    } else if let Err(e) = crate::store::init_store(db_path) {
-        log::warn!("   ⚠️ redb 初始化失败: {}（权限表将在内存中运行）", e);
+    let db_path = std::env::var("PG_DB_PATH").unwrap_or_else(|_| "/etc/config/policy-gateway/auth.redb".to_string());
+    let parent = std::path::Path::new(&db_path).parent().unwrap_or(std::path::Path::new("/tmp"));
+    if let Err(e) = std::fs::create_dir_all(parent) {
+        log::warn!("⚠️  无法创建数据目录 {}: {}（权限表将在内存中运行）", parent.display(), e);
+    } else if let Err(e) = crate::store::init_store(&db_path) {
+        log::warn!("⚠️  {} 不可用: {} — 尝试 /tmp/auth.redb...", db_path, e);
+        if let Err(e2) = crate::store::init_store("/tmp/auth.redb") {
+            log::warn!("⚠️  /tmp/auth.redb 也不可用: {}（权限表将在内存中运行）", e2);
+        } else {
+            log::info!("   📀 持久化存储: /tmp/auth.redb (tmpfs)");
+        }
     } else {
-        log::info!("   📀 持久化存储: /etc/config/policy-gateway/auth.redb");
+        log::info!("   📀 持久化存储: {}", db_path);
         // 从数据库恢复已保存的条目
         if let Ok(entries) = crate::store::iter().await {
             let mut table_w = core.auth_table.write().await;
@@ -111,7 +116,7 @@ async fn start_server(serve_html: bool) {
 
     // 模块加载
     {
-        let mut registry = modules::ModuleRegistry::new();
+        let _registry = modules::ModuleRegistry::new();
 
         // 检查维护模式
         let maintenance_path = "/etc/backup/policy-gateway/maintenance.json";
