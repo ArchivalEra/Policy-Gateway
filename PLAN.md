@@ -656,6 +656,7 @@ Phase 2.2    device_id + 安全审查                ✅
 Phase 2.5-3  仓库翻新 + recovery.rs 恢复         ✅
 Phase 2.6    MODULES.md 修正 + vm-mod 搁置       ✅
 Phase 2.7🚀  VM install + /help + MCU + 全路由   ✅
+Phase 2.8    交叉编译 + 路由器实测               ✅
 ```
 
 ### API 一览
@@ -677,8 +678,7 @@ Phase 2.7🚀  VM install + /help + MCU + 全路由   ✅
 ### 进行中
 
 ```
-Phase 2.8    vm-mod-worker (Pages 模块管理器) + policy-gateway-mirror   🔜
-Phase 3.0    nftables 事件驱动 + QUIC 兼容                      📋（本期）
+Phase 2.9    🏗️ 项目重构: CLI 优先 + API 去前端 + 时间戳驱动   🔜（当前）
 ```
 
 ### 搁置
@@ -1182,4 +1182,100 @@ network-mode-extra 作为可选模块 (modelize feature):
   minimize:  +0 bytes (不编译)
   modelize:  +~50kB (nftables 规则管理器 + CLI)
   运行时:    零 (规则在 HW 中匹配)
+```
+
+
+---
+
+## 十五、Phase 2.9 重构 — CLI 优先，API 去前端，时间戳驱动
+
+### 核心转变
+
+```
+之前: Rust 二进制 = HTTP 服务 + HTML 硬编码 + CLI 附带
+之后: Rust 二进制 = 纯 API 守护进程 (HTTP/3 + QUIC)
+      CLI = 独立二进制，唯一官方客户端
+      前端 = Vite 8 独立仓库，调用 CLI 或直接调 API
+```
+
+### 架构
+
+```
+┌───────────────────────────────────────────────────┐
+│  policy-gateway (守护进程)                          │
+│  无 HTML, 纯 JSON API                              │
+│  API: /api/signup /api/manager/* /api/cert-confirm │
+│  传输: HTTPS (默认) + QUIC (可选)                   │
+│  存储: redb (本地) / KV (Worker)                    │
+│  事件: 所有操作带 timestamp + signature              │
+├───────────────────────────────────────────────────┤
+│  pg (CLI, 平台无关)                                 │
+│  单一静态二进制, 静编 musl                           │
+│  子命令:                                            │
+│    pg auth login/logout                             │
+│    pg cert sign/revoke/list                         │
+│    pg perm grant/revoke/list                        │
+│    pg approve/reject --id <rid>                     │
+│    pg status --sha256 <hex>                         │
+│    pg sync pull/push                                │
+│  连接: 通过 HTTPS 或 QUIC 与守护进程通信             │
+│  认证: 客户端证书 mTLS 或短期 token                   │
+├───────────────────────────────────────────────────┤
+│  前端 (独立仓库)                                     │
+│  Vite 8 + React                                     │
+│  通过 CLI 或直接 API 通信                            │
+│  部署到 Cloudflare Pages / USB / R2                 │
+└───────────────────────────────────────────────────┘
+```
+
+### 时间戳驱动
+
+```
+所有操作不可变, 按时间戳排序:
+
+  { operation: "approve", sha256: "...", by: "...", 
+    timestamp: 1712345678, signature: "edsig..." }
+
+冲突解决:
+  - 同一个 sha256 的多个操作 → 按 timestamp 排序
+  - 最终结果 = 最后一个操作的状态
+  - revoke 永远赢（即使时间戳更小）
+
+断电恢复:
+  启动时重放 redb 或 KV 中的所有事件到最新状态
+  不依赖请求顺序, 只依赖时间戳
+```
+
+### 隐私保护
+
+```
+  ① 设备 ID 用 salted hash, 不存原始标识
+  ② 日志只记录操作类型 + 时间戳, 不记录 IP/设备信息
+  ③ CLI 默认不保存 token, 每次交互需认证
+  ④ 前端页面无追踪, 无分析, 无第三方资源
+```
+
+### 实施步骤
+
+```
+Phase 2.9.1: CLI 骨架
+  → pg auth login/logout (token 管理)
+  → pg cert sign (curl 调用 /api/signup 的封装)
+  → pg approve/reject (封装 /api/manager/approve)
+  → 静态编译, 单文件
+
+Phase 2.9.2: 守护进程 HTML 剥离
+  → 移除所有 HTML 处理函数
+  → 只保留 JSON API + 静态文件服务 (选配)
+  → 移除 Web Crypto 浏览器依赖
+
+Phase 2.9.3: 时间戳事件系统
+  → 所有操作改为事件追加
+  → 启动时重放到最新状态
+  → 同步协议基于事件流
+
+Phase 2.9.4: 前端拆分
+  → 新建独立仓库
+  → Vite 8 + 响应式
+  → 通过 CLI 通信
 ```
