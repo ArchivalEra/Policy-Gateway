@@ -25,13 +25,17 @@ pub fn init_store(path: &str) -> Result<(), String> {
         .map_err(|_| "DB already initialized".to_string())
 }
 
-fn store() -> &'static Arc<Mutex<Database>> {
-    GLOBAL_STORE.get().expect("store not initialized — call init_store first")
+fn store() -> Option<&'static Arc<Mutex<Database>>> {
+    GLOBAL_STORE.get()
 }
 
 /// 写入一个条目
 pub async fn put(sha256: &str, value: &str) -> Result<(), String> {
-    let db = store().lock().await;
+    let store = match store() {
+        Some(s) => s.clone(),
+        None => return Ok(()),  // store not initialized, skip
+    };
+    let db = store.lock().await;
     let tx = db.begin_write().map_err(|e| format!("write begin: {}", e))?;
     {
         let mut table = tx.open_table(TABLE).map_err(|e| format!("table open: {}", e))?;
@@ -43,7 +47,11 @@ pub async fn put(sha256: &str, value: &str) -> Result<(), String> {
 
 /// 读取一个条目
 pub async fn get(sha256: &str) -> Result<Option<String>, String> {
-    let db = store().lock().await;
+    let store = match store() {
+        Some(s) => s.clone(),
+        None => return Ok(None),
+    };
+    let db = store.lock().await;
     let tx = db.begin_read().map_err(|e| format!("read begin: {}", e))?;
     let table = tx.open_table(TABLE).map_err(|e| format!("table open: {}", e))?;
     match table.get(sha256).map_err(|e| format!("get: {}", e))? {
@@ -54,7 +62,11 @@ pub async fn get(sha256: &str) -> Result<Option<String>, String> {
 
 /// 删除一个条目
 pub async fn delete(sha256: &str) -> Result<(), String> {
-    let db = store().lock().await;
+    let store = match store() {
+        Some(s) => s.clone(),
+        None => return Ok(()),
+    };
+    let db = store.lock().await;
     let tx = db.begin_write().map_err(|e| format!("write begin: {}", e))?;
     {
         let mut table = tx.open_table(TABLE).map_err(|e| format!("table open: {}", e))?;
@@ -66,7 +78,11 @@ pub async fn delete(sha256: &str) -> Result<(), String> {
 
 /// 列出所有条目（迭代器）
 pub async fn iter() -> Result<Vec<(String, String)>, String> {
-    let db = store().lock().await;
+    let store = match store() {
+        Some(s) => s.clone(),
+        None => return Ok(vec![]),
+    };
+    let db = store.lock().await;
     let tx = db.begin_read().map_err(|e| format!("read begin: {}", e))?;
     let table = tx.open_table(TABLE).map_err(|e| format!("table open: {}", e))?;
     let mut out = Vec::new();

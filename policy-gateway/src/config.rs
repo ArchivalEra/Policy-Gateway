@@ -58,6 +58,14 @@ pub struct Config {
     pub db_path: String,
     /// 语言 (zh/en)
     pub language: String,
+    /// 存储后端 ("redb" / "s3" / "mirror")
+    pub storage_backend: String,
+    /// S3 端点 (storage_backend="s3" 时)
+    pub storage_endpoint: Option<String>,
+    /// S3 Bucket 名
+    pub storage_bucket: Option<String>,
+    /// Mirror Worker URL (storage_backend="mirror" 时)
+    pub mirror_worker_url: Option<String>,
     /// TLS 证书路径 (可选)
     pub tls_cert: Option<String>,
     /// TLS 密钥路径 (可选)
@@ -79,6 +87,10 @@ impl Default for Config {
             tls_cert: None,
             tls_key: None,
             tls_profile: TlsProfile::default(),
+            storage_backend: "redb".into(),
+            storage_endpoint: None,
+            storage_bucket: None,
+            mirror_worker_url: None,
         }
     }
 }
@@ -121,6 +133,10 @@ impl Config {
         if let Ok(v) = std::env::var("PG_ALLOW_TLS13") { self.tls_profile.allow_tls13 = v == "true" || v == "1"; }
         if let Ok(v) = std::env::var("PG_ALLOW_QUIC") { self.tls_profile.allow_quic = v == "true" || v == "1"; }
         if let Ok(v) = std::env::var("PG_MTLS_ENABLED") { self.tls_profile.mtls_enabled = v == "true" || v == "1"; }
+        if let Ok(v) = std::env::var("PG_STORAGE") { self.storage_backend = v; }
+        if let Ok(v) = std::env::var("PG_STORAGE_ENDPOINT") { self.storage_endpoint = Some(v); }
+        if let Ok(v) = std::env::var("PG_STORAGE_BUCKET") { self.storage_bucket = Some(v); }
+        if let Ok(v) = std::env::var("PG_MIRROR_URL") { self.mirror_worker_url = Some(v); }
         self
     }
 

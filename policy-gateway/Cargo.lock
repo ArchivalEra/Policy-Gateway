@@ -792,7 +792,7 @@ checksum = "19f132c84eca552bf34cab8ec81f1c1dcc229b811638f9d283dceabe58c5569e"
 
 [[package]]
 name = "policy-gateway"
-version = "0.2.7"
+version = "0.3.3"
 dependencies = [
  "axum",
  "base64",
@@ -819,7 +819,7 @@ dependencies = [
 
 [[package]]
 name = "policy-gateway-vm"
-version = "0.2.7"
+version = "0.3.3"
 dependencies = [
  "hex",
  "ring",
