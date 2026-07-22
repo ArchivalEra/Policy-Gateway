@@ -134,6 +134,17 @@ policy-gateway-vm rollback test   回滚
 
 **活跃开发 — Phase 3.3** (v0.3.3)
 
+| Phase | 亮点 |
+|-------|------|
+| 0.5 | 核心门户 + 权限表 + GC |
+| 2.0 | 两阶段确认 + 硬件 ID |
+| 2.7 | CLI + EventLog + 前端开关 |
+| 2.9 | API 优先重构, CLI 骨架 |
+| 3.0 | 统一配置, rclone 风格 CLI |
+| 3.1 | 中英双语, QUIC 模块提示 |
+| 3.2 | TLS 框架, nftables 自动部署, procd, vm-worker |
+| **3.3** 🎯 | **v0.3.3 路由器部署, store 防 panic, 存储抽象** |
+
 - ✅ 核心闭环: signup → approve → active
 - ✅ Ed25519 CA + 两阶段确认
 - ✅ nftables 自动部署 + 清理

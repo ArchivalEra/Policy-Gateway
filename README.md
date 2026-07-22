@@ -144,6 +144,17 @@ policy-gateway-vm rollback test   # Rollback
 
 **Active development — Phase 3.3** (v0.3.3)
 
+| Phase | Highlights |
+|-------|-----------|
+| 0.5 | Core portal + permission table + GC |
+| 2.0 | Two-phase confirm + hardware ID |
+| 2.7 | CLI + EventLog + frontend feature gate |
+| 2.9 | API-first restructure, CLI skeleton |
+| 3.0 | Unified config, rclone-style CLI |
+| 3.1 | i18n zh/en, QUIC module notice |
+| 3.2 | TLS framework, nftables autodeploy, procd, vm-worker |
+| **3.3** 🎯 | **Router-deployed v0.3.3, store panic fix, storage abstraction** |
+
 - ✅ Core loop: signup → approve → active
 - ✅ Ed25519 CA with two-phase commit
 - ✅ nftables auto-deploy + cleanup
