@@ -58,7 +58,7 @@ MANAGER_TOKEN=test cargo run
 | 维护规章 | [`policy-gateway/docs/MAINTENANCE.md`](../policy-gateway/docs/MAINTENANCE.md) |
 | 模块指南 | [`policy-gateway/docs/MODULE_GUIDE.md`](../policy-gateway/docs/MODULE_GUIDE.md) |
 | MCU 教程 | 运行后访问 `/api/help?topic=mcu` |
-| Worker 镜像 | [`docs/PHASE2.8.md`](../policy-gateway/docs/PHASE2.8.md) |
+| Worker 镜像 | 核心: `/recover` 仅恢复; 扩展: `vm-mod-worker` + `policy-gateway-mirror` 模块 |
 
 ## 快速部署 (OpenWrt/ImmortalWrt)
 
