@@ -45,16 +45,25 @@ pub async fn healthz() -> axum::response::Json<serde_json::Value> {
 /// GET / — 简洁首页
 pub async fn root_handler() -> axum::response::Html<&'static str> {
     axum::response::Html(r#"<!DOCTYPE html>
-<html lang="zh"><head><meta charset="UTF-8"><title>policy-gateway</title>
-<style>body{font-family:sans-serif;max-width:600px;margin:auto;padding:40px;text-align:center}
-a{display:block;padding:12px;margin:8px;background:#06c;color:#fff;border-radius:6px;text-decoration:none;font-size:18px}
-a:hover{background:#058}</style></head>
+<html lang="zh"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>policy-gateway</title>
+<style>
+*{box-sizing:border-box}
+body{font-family:-apple-system,system-ui,sans-serif;max-width:600px;margin:auto;padding:20px;text-align:center;background:#f5f5f5;color:#333}
+.card{background:#fff;border-radius:12px;padding:20px;margin:12px 0;box-shadow:0 1px 3px rgba(0,0,0,.1)}
+a{display:block;padding:14px;margin:8px;background:#0066cc;color:#fff;border-radius:8px;text-decoration:none;font-size:18px;font-weight:500}
+a:hover{background:#0052a3}
+a.secondary{background:#6c757d;font-size:14px}
+@media(max-width:480px){body{padding:12px}a{font-size:16px;padding:12px}}</style></head>
 <body>
+<div class="card">
 <h1>🔐 policy-gateway</h1>
-<p>证书管理网关</p>
+<p style="font-size:14px;color:#666">证书管理网关</p>
+</div>
+<div class="card" style="padding:12px">
 <a href="/signup">📜 申请证书</a>
 <a href="/manager">🔑 管理面板</a>
 <a href="/permissions">📋 权限表</a>
-<a href="/api/help">📖 接入教程</a>
+<a href="/api/help" class="secondary">📖 接入教程</a>
+</div>
 </body></html>"#)
 }

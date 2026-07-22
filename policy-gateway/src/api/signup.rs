@@ -248,17 +248,20 @@ pub async fn handle_form(
 ) -> Html<String> {
     let table = state.auth_table.read().await;
     let count = table.list_pending().len();
-    Html(format!(r#"<!DOCTYPE html><html lang="zh"><head><meta charset="UTF-8"><title>证书申请</title><style>
-body{{font-family:sans-serif;max-width:600px;margin:auto;padding:20px}}
-input,select,textarea{{width:100%;padding:8px;margin:6px 0;box-sizing:border-box}}
-button{{padding:10px 20px;background:#06c;color:#fff;border:none;cursor:pointer;margin:4px}}
-button:disabled{{opacity:.5}}
-code{{background:#eee;padding:2px 6px;border-radius:3px}}
-pre{{overflow:auto;max-height:200px}}
+    Html(format!(r#"<!DOCTYPE html><html lang="zh"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>证书申请</title><style>
+*{{box-sizing:border-box}}
+body{{font-family:-apple-system,system-ui,sans-serif;max-width:600px;margin:auto;padding:20px;background:#f5f5f5;color:#333}}
+input,select,textarea{{width:100%;padding:10px;margin:6px 0;border:1px solid #ddd;border-radius:6px;font-size:16px;box-sizing:border-box}}
+button{{padding:12px 20px;background:#0066cc;color:#fff;border:none;border-radius:6px;cursor:pointer;font-size:16px;width:100%}}
+button:hover{{background:#0052a3}}
+button:disabled{{opacity:.5;cursor:not-allowed}}
+code{{background:#eee;padding:2px 6px;border-radius:3px;font-size:13px;word-break:break-all}}
+pre{{overflow:auto;max-height:200px;background:#f4f4f4;padding:10px;border-radius:6px;font-size:13px}}
+.card{{background:#fff;border-radius:12px;padding:20px;margin:12px 0;box-shadow:0 1px 3px rgba(0,0,0,.1)}}
 .badge{{display:inline-block;padding:2px 8px;border-radius:4px;font-size:12px;margin:2px}}
 .badge-green{{background:#d4edda;color:#155724}}
 .badge-yellow{{background:#fff3cd}}
-</style></head><body>
+@media(max-width:480px){{body{{padding:10px}}.card{{padding:12px}}}}
 <h1>📜 证书申请</h1>
 <p>待审批: {count}</p>
 <div style="background:#f0f8ff;padding:12px;border-radius:8px;margin-bottom:12px">

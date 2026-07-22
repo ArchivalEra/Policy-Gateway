@@ -49,6 +49,14 @@ async function snapshotModule(name, env) {
   return { status: 'snapshot_created', module: name };
 }
 
+function checkAuth(request, env) {
+  const url = new URL(request.url);
+  const token = url.searchParams.get('token') || '';
+  const mt = env.MANAGER_TOKEN || '';
+  if (!mt || token !== mt) return false;
+  return true;
+}
+
 // === Router ===
 export default {
   async fetch(request, env) {
@@ -60,6 +68,11 @@ export default {
     }
     try {
       const path = url.pathname;
+
+      // 所有 API 需要 token 认证
+      if (path.startsWith('/api/vm-mod') && !checkAuth(request, env)) {
+        return new Response('Unauthorized', { status: 401 });
+      }
 
       // 模块管理 API
       if (path === '/api/vm-mod/list') {
