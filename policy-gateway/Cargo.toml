@@ -33,7 +33,7 @@ redb = "2"
 
 [workspace]
 resolver = "2"
-members = ["vm"]
+members = ["vm", "cli"]
 
 [profile.release]
 lto = true
