@@ -38,38 +38,48 @@ pub async fn handle(
         })));
     }
 
-    let mut table = state.auth_table.write().await;
-    let entry = table.get_by_request_id(&req.request_id);
-    if entry.is_none() {
-        return Err((StatusCode::NOT_FOUND, Json(ConfirmResponse {
-            status: "error".into(),
-            message: "request_id 不存在".into(),
-        })));
-    }
-    let entry = entry.unwrap();
-    if entry.status != EntryStatus::PendingConfirm {
-        return Err((StatusCode::CONFLICT, Json(ConfirmResponse {
-            status: "error".into(),
-            message: format!("证书状态为 {:?}，不可确认", entry.status),
-        })));
-    }
+    // ---- 写锁范围（修改权限表） ----
+    let db_sha256 = {
+        let mut table = state.auth_table.write().await;
+        let entry = table.get_by_request_id(&req.request_id);
+        if entry.is_none() {
+            return Err((StatusCode::NOT_FOUND, Json(ConfirmResponse {
+                status: "error".into(),
+                message: "request_id 不存在".into(),
+            })));
+        }
+        let entry = entry.unwrap();
+        if entry.status != EntryStatus::PendingConfirm {
+            return Err((StatusCode::CONFLICT, Json(ConfirmResponse {
+                status: "error".into(),
+                message: format!("证书状态为 {:?}，不可确认", entry.status),
+            })));
+        }
 
-    let sha256 = entry.sha256;
-    let _ = entry;
+        let sha256 = entry.sha256;
+        let _ = entry;
 
-    let entry = table.get_mut(&sha256);
-    if let Some(e) = entry {
-        e.status = EntryStatus::Active;
-        e.bitmap = e.requested_bitmap;
-        if let Some(ref hid) = req.hw_id { e.hw_id = Some(hid.clone()); }
-        e.hw_platform = req.hw_platform.clone();
-    }
-    // 从 pending 映射移除
-    let _ = table.remove_pending(&req.request_id);
+        let entry = table.get_mut(&sha256);
+        if let Some(e) = entry {
+            e.status = EntryStatus::Active;
+            e.bitmap = e.requested_bitmap;
+            if let Some(ref hid) = req.hw_id { e.hw_id = Some(hid.clone()); }
+            e.hw_platform = req.hw_platform.clone();
+        }
+        let _ = table.remove_pending(&req.request_id);
+        sha256
+    }; // 写锁在这里释放
 
-    // 从 pending 映射移除（同 approve/reject）
-    
     log::info!("✅ 证书确认: {}", req.request_id);
+
+    // ---- 读锁范围（持久化到 redb） ----
+    let sha256_hex = hex::encode(db_sha256);
+    let table_r = state.auth_table.read().await;
+    if let Some(entry) = table_r.get(&db_sha256) {
+        if let Ok(entry_json) = serde_json::to_string(entry) {
+            let _ = crate::store::put(&sha256_hex, &entry_json).await;
+        }
+    }
 
     Ok(Json(ConfirmResponse {
         status: "active".into(),

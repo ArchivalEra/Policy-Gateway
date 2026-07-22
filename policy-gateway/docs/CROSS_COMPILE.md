@@ -5,21 +5,12 @@
 
 ## 方法一: cargo-zigbuild（推荐，最省心）
 
+项目目录下的 `.toolchain/` 已包含 zig 0.14.0 和 rust-src 1.96.0：
+
 ```bash
-# 1. 安装 zig
-wget https://ziglang.org/download/0.14.0/zig-linux-x86_64-0.14.0.tar.xz
-tar xf zig-linux-x86_64-0.14.0.tar.xz
-export PATH=$PWD/zig-linux-x86_64-0.14.0:$PATH
-
-# 2. 安装 cargo-zigbuild
-cargo install cargo-zigbuild
-
-# 3. 编译
+export PATH="policy-gateway/.toolchain/zig:$PATH"
 cd policy-gateway
-cargo zigbuild --target mipsel-unknown-linux-musl --release
-
-# 4. 压缩
-upx --best target/mipsel-unknown-linux-musl/release/policy-gateway
+CARGO_TARGET_DIR=/tmp/pg-mips cargo zigbuild --target mipsel-unknown-linux-musl --release -Z build-std
 ```
 
 ## 方法二: musl.cc 交叉编译器 + nightly Rust

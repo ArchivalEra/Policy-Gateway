@@ -180,6 +180,11 @@ pub async fn handle_approve(
             match table.approve(&req.request_id, filtered_bitmap) {
                 Some(entry) => {
                     log::info!("✅ 批准: {} ({})", req.request_id, entry.hostname);
+                    // 持久化到 redb
+                    let sha256_hex = hex::encode(entry.sha256);
+                    if let Ok(entry_json) = serde_json::to_string(entry) {
+                        let _ = crate::store::put(&sha256_hex, &entry_json).await;
+                    }
                     Ok(Json(ApproveResponse {
                         status: "approved".into(), message: format!("已批准 {}", entry.hostname),
                     }))
@@ -191,8 +196,12 @@ pub async fn handle_approve(
         }
         "reject" => {
             match table.reject(&req.request_id) {
-                Some(_) => {
+                Some(entry) => {
                     log::info!("❌ 拒绝: {}", req.request_id);
+                    let sha256_hex = hex::encode(entry.sha256);
+                    if let Ok(entry_json) = serde_json::to_string(entry) {
+                        let _ = crate::store::put(&sha256_hex, &entry_json).await;
+                    }
                     Ok(Json(ApproveResponse {
                         status: "rejected".into(), message: "已拒绝".into(),
                     }))

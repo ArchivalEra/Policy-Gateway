@@ -72,6 +72,29 @@ async fn main() {
         ca_cert_pem: ca_cert,
     });
 
+    // 初始化 redb 持久化
+    if let Err(e) = crate::store::init_store("/etc/config/policy-gateway/auth.redb") {
+        log::warn!("   ⚠️ redb 初始化失败: {}（权限表将在内存中运行）", e);
+    } else {
+        log::info!("   📀 持久化存储: /etc/config/policy-gateway/auth.redb");
+        // 从数据库恢复已保存的条目
+        if let Ok(entries) = crate::store::iter().await {
+            let mut table_w = core.auth_table.write().await;
+            for (sha256_hex, entry_json) in entries {
+                if let Ok(sha256) = hex::decode(&sha256_hex) {
+                    let mut arr = [0u8; 32];
+                    if sha256.len() == 32 {
+                        arr.copy_from_slice(&sha256);
+                        if let Ok(entry) = serde_json::from_str::<crate::auth::PermissionEntry>(&entry_json) {
+                            table_w.put(arr, entry);
+                        }
+                    }
+                }
+            }
+            log::info!("   📂 恢复 {} 个条目", table_w.iter().count());
+        }
+    }
+
     // 首次启动检测
     {
         // 如果 MANAGER_TOKEN 未设置，尝试从 seed.json 读取

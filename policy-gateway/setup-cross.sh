@@ -13,6 +13,9 @@
 #
 # 代理: 如果 proxy_on 可用，会自动启用
 
+# 项目本地的 .toolchain/ 目录已预装 zig 0.14.0 + rust-src 1.96.0
+# 直接使用: export PATH="$(dirname "$0")/.toolchain/zig:$PATH"
+
 set -e
 
 if command -v proxy_on 2>/dev/null; then

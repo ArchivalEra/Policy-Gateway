@@ -57,4 +57,9 @@ policy-gateway/deploy/seed.json
 pre-do.sh
 # pre-do 本地进度
 progress/
-.rustup-tmp\n.cargo-tmp
+policy-gateway/.cargo/
+.rustup-tmp
+.cargo-tmp
+# Frontend module (Vite 8, not pushed to git)
+policy-gateway/docs/frontend-module/
+

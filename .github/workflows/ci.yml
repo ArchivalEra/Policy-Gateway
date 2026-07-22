@@ -32,3 +32,6 @@ jobs:
       - name: Build (release)
         working-directory: policy-gateway
         run: cargo build --release
+      - name: Build VM
+        working-directory: policy-gateway
+        run: cargo build -p policy-gateway-vm --release

@@ -247,7 +247,7 @@ fn base64_decode(data: &str) -> Option<Vec<u8>> {
     base64::engine::general_purpose::STANDARD.decode(data).ok()
 }
 
-fn extract_pkcs8_from_pem(pem: &str) -> Option<Vec<u8>> {
+pub fn extract_pkcs8_from_pem(pem: &str) -> Option<Vec<u8>> {
     let b64: String = pem.lines()
         .filter(|l| !l.starts_with("-----"))
         .collect();

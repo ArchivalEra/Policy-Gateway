@@ -672,11 +672,12 @@ Phase 2.7🚀  VM install + /help + MCU + 全路由   ✅
 | `/api/cert-confirm` | POST | 两阶段确认证书 |
 | `/permissions` | GET | HTML 权限表 |
 | `/api/help` | GET | JSON 教程（MCU/浏览器/CLI/headless） |
+| `/healthz` | GET | 健康检查 JSON |
 
 ### 进行中
 
 ```
-Phase 2.8    Worker 镜像 — 路由器离线时接管 /manager+/signup   🔜
+Phase 2.8    Worker 镜像 — vm-mod-worker (模块)            🔜  [docs/vm-mod-worker/](docs/vm-mod-worker/)
 Phase 3.0    nftables 事件驱动 + QUIC 兼容                      📋（本期）
 ```
 

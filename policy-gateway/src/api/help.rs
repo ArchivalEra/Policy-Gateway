@@ -66,10 +66,10 @@ fn mcu_guide() -> HelpResponse {
                 expected: Some("证书存到 /certs/device.pem，mTLS 握手后用证书访问互联网".to_string()),
             },
             HelpStep {
-                title: "5. MCU 无 TLS 能力 — pubkey 直发".into(),
-                body: "如果 MCU 不能生成 CSR，直接发公钥 hex：\ncurl -X POST http://host:8443/api/signup -H 'Content-Type: application/json' -d '{\"pubkey\":\"<ed25519_hex>\",\"hostname\":\"esp32-sensor\"}'".into(),
-                cli: Some("# ESP32: 生成 Ed25519 密钥对后\n# curl -X POST http://host:8443/api/signup \\\n#   -H 'Content-Type: application/json' \\\n#   -d '{\"pubkey\":\"abcdef...\",\"hostname\":\"esp-sensor\"}'".into()),
-                expected: Some("返回 pending_confirm + PEM 证书".to_string()),
+                title: "5. MCU 无 TLS 能力 — pubkey 直发（推荐）".into(),
+                body: "MCU 只需发送公钥 hex（比 CSR 简单 10 倍）：\ncurl -X POST http://host:8443/api/signup -H 'Content-Type: application/json' -d '{\"pubkey\":\"<32_byte_ed25519_hex>\",\"hostname\":\"esp32-sensor\"}'\n服务器自动包装为证书 + CA 签名。".into(),
+                cli: Some("# ESP32 (Arduino): 生成 Ed25519 密钥对，输出公钥 hex\n# curl -X POST http://host:8443/api/signup \\\n#   -H 'Content-Type: application/json' \\\n#   -d '{\"pubkey\":\"<公钥hex>\",\"hostname\":\"esp-sensor\",\"hw_platform\":\"esp32\"}'".into()),
+                expected: Some("返回 pending_confirm + 签名证书 PEM".to_string()),
             },
         ],
     }
@@ -109,7 +109,13 @@ fn cli_guide() -> HelpResponse {
         steps: vec![
             HelpStep {
                 title: "policy-gateway 命令".into(),
-                body: "  perm gc       — 清理过期权限\n  perm list     — 列出所有权限\n  perm stats    — 统计信息\n  vm snapshot   — 创建快照\n  vm rollback   — 回滚\n  init          — 首次设置".into(),
+                body: "  perm gc       — 清理过期权限\n  perm list     — 列出所有权限\n  perm stats    — 统计信息\n  vm snapshot   — 创建快照\n  vm rollback   — 回滚\n  init          — 首次设置\n  --help        — 帮助".into(),
+                cli: None,
+                expected: None,
+            },
+            HelpStep {
+                title: "MCU 证书申请".into(),
+                body: "方法1 (推荐): 直接发送公钥 hex\n  PUBKEY=$(esp32_generate_key | grep pubkey | cut -d' ' -f2)\n  curl -X POST http://host:8443/api/signup \\\n    -H 'Content-Type: application/json' \\\n    -d '{\"pubkey\":\"$PUBKEY\",\"hostname\":\"sensor1\"}'\n\n方法2 (标准): 生成 CSR 后提交\n  openssl req -new -newkey rsa:2048 -nodes -keyout key.pem -out csr.pem\n  CSR=$(cat csr.pem)\n  curl -X POST http://host:8443/api/signup \\\n    -H 'Content-Type: application/json' \\\n    -d '{\"csr\":\"$CSR\",\"hostname\":\"sensor1\"}'".into(),
                 cli: None,
                 expected: None,
             },

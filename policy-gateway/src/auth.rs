@@ -167,6 +167,11 @@ impl AuthTable {
         self.entries.values()
     }
 
+    /// 直接插入或替换一个条目（用于从持久化存储恢复）
+    pub fn put(&mut self, sha256: [u8; 32], entry: PermissionEntry) {
+        self.entries.insert(sha256, entry);
+    }
+
     // ============ 写入 ============
 
     pub fn add_pending(

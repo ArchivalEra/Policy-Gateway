@@ -23,6 +23,7 @@ pub fn portal_router(state: std::sync::Arc<CoreState>) -> Router {
         .route("/permissions", get(crate::api::permissions::handle_page))
         .route("/api/manager/pending", get(crate::api::manager::handle_pending_json))
         .route("/api/help", get(crate::api::help::handle))
+        .route("/healthz", get(healthz))
         .route("/signup", get(crate::api::signup::handle_form))
         .route("/", get(root_handler))
         .with_state(state)
@@ -30,6 +31,15 @@ pub fn portal_router(state: std::sync::Arc<CoreState>) -> Router {
 
 pub fn portal_name() -> &'static str {
     "core-portal — 认证门户（必需）"
+}
+
+/// GET /healthz — 健康检查
+pub async fn healthz() -> axum::response::Json<serde_json::Value> {
+    axum::response::Json(serde_json::json!({
+        "status": "ok",
+        "service": "policy-gateway",
+        "version": env!("CARGO_PKG_VERSION"),
+    }))
 }
 
 /// GET / — 简洁首页
