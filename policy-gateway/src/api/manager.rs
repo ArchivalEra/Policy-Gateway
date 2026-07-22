@@ -12,28 +12,31 @@ use axum::{Json, response::Html};
 use once_cell::sync::Lazy;
 use serde::{Deserialize, Serialize};
 use crate::lang::{t, S};
+use crate::config::{hash_token, verify_token};
 use std::sync::Arc;
 
 use crate::auth::BIT_CONNECTOR;
 use crate::AppState;
 
-/// 恒定时间比较（防时序攻击）
-fn constant_time_eq(a: &str, b: &str) -> bool {
-    if a.len() != b.len() { return false; }
-    let mut result: u8 = 0;
-    for (ca, cb) in a.bytes().zip(b.bytes()) {
-        result |= ca ^ cb;
+/// 启动时读取 MANAGER_TOKEN 哈希
+static MANAGER_TOKEN_HASH: Lazy<String> = Lazy::new(|| {
+    let cfg = crate::config::Config::load();
+    let cfg_hash = cfg.manager_token_hash.clone();
+    if !cfg_hash.is_empty() && cfg_hash != hash_token("") {
+        return cfg_hash;
     }
-    result == 0
-}
-
-/// 启动时读取 MANAGER_TOKEN，不存在则 panic
-static MANAGER_TOKEN: Lazy<String> = Lazy::new(|| {
-    std::env::var("MANAGER_TOKEN").expect("MANAGER_TOKEN 环境变量未设置，启动失败")
+    match std::env::var("MANAGER_TOKEN") {
+        Ok(t) if !t.is_empty() => hash_token(&t),
+        _ => {
+            log::error!("MANAGER_TOKEN 未设置！首次使用请运行: policy-gateway init");
+            hash_token("")
+        }
+    }
 });
 
+/// Token 验证（哈希比较，防时序攻击）
 pub fn check_auth(token: &str) -> bool {
-    constant_time_eq(token, &MANAGER_TOKEN)
+    verify_token(token, &MANAGER_TOKEN_HASH)
 }
 
 /// HTML 转义（防止 XSS）

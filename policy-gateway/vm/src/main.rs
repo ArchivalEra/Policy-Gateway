@@ -58,12 +58,14 @@ fn cli(args: &[String]) {
         Some("status") => print_status(),
         Some("verify") => verify(),
         Some("init") => init_paths(),
+        Some("hot-update") => hot_update(args.get(2)),
+        Some("maintenance") => maintenance_cli(&args[1..]),
         _ => help(),
     }
 }
 
 fn help() {
-    println!("VM — 不死鸟 v0.1 (Rust, 零恐慌)");
+    println!("VM — 不死鸟 v0.2 (Rust, 零恐慌)");
     println!("  install <path>    安装/升级主程序（来源: USB / curl / scp）");
     println!("  snapshot [name]    创建快照 (原子写入)");
     println!("  rollback [id]      回滚 (先校验 SHA256)");
@@ -71,6 +73,10 @@ fn help() {
     println!("  status             查看状态");
     println!("  verify             校验所有快照完整性");
     println!("  init               初始化备份目录");
+    println!("  hot-update <url>   从 URL 下载并热更新 (需 curl)");
+    println!("  maintenance set <开始时间戳> <结束时间戳>  设置维护窗口");
+    println!("  maintenance status                       查看维护状态");
+    println!("  maintenance clear                         清除维护窗口");
 }
 
 fn install(src_arg: Option<&String>) {
@@ -312,4 +318,126 @@ fn init_paths() {
     }
     println!("✅ VM 目录初始化完成");
     println!("   准备就绪，可以运行 'vm install /path/to/policy-gateway' 安装主程序");
+}
+
+/// 维护文件路径
+fn maintenance_file() -> PathBuf {
+    backup_dir().join("maintenance.json")
+}
+
+/// 热更新: 从 URL 下载并安装
+fn hot_update(url: Option<&String>) {
+    let url = match url {
+        Some(u) => u,
+        None => { eprintln!("❌ 请提供下载 URL\n   用法: vm hot-update <url>"); return; }
+    };
+
+    let tmp = "/tmp/pg-hot-update";
+    println!("📥 下载 {} ...", url);
+
+    let status = std::process::Command::new("curl")
+        .args(["-sL", "-o", tmp, "-w", "%{http_code}", url])
+        .output();
+
+    match status {
+        Ok(out) if out.status.success() => {
+            let code = String::from_utf8_lossy(&out.stdout).trim().to_string();
+            if code != "200" {
+                eprintln!("❌ 下载失败: HTTP {}", code);
+                let _ = std::fs::remove_file(tmp);
+                return;
+            }
+        }
+        Ok(_) => {
+            eprintln!("❌ 下载失败 (curl exit code {})", status.unwrap().status);
+            return;
+        }
+        Err(e) => {
+            eprintln!("❌ curl 不可用: {}（请先安装 curl）", e);
+            return;
+        }
+    }
+
+    let src = std::path::Path::new(tmp);
+    if !src.exists() {
+        eprintln!("❌ 下载文件不存在");
+        return;
+    }
+
+    println!("📦 正在安装...");
+    let src_hash_bytes = sha256_file(src).unwrap_or([0u8; 32]);
+    install_src(src);
+
+    // 记录热更新时间戳
+    let ts = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .unwrap_or_default()
+        .as_secs();
+    let meta = serde_json::json!({
+        "hot_updated_at": ts,
+        "sha256": hex::encode(src_hash_bytes),
+        "url": url,
+    });
+    let _ = std::fs::write(backup_dir().join("hot-update.json"), serde_json::to_string_pretty(&meta).unwrap_or_default());
+
+    let _ = std::fs::remove_file(tmp);
+    println!("✅ 热更新完成");
+}
+
+/// 维护模式 CLI
+fn maintenance_cli(args: &[String]) {
+    match args.get(1).map(|s| s.as_str()) {
+        Some("set") => {
+            let start_ts = args.get(2).and_then(|s| s.parse::<u64>().ok());
+            let end_ts = args.get(3).and_then(|s| s.parse::<u64>().ok());
+            match (start_ts, end_ts) {
+                (Some(s), Some(e)) if s < e => {
+                    let content = serde_json::json!({
+                        "maintenance_start": s,
+                        "maintenance_end": e,
+                    });
+                    match std::fs::write(maintenance_file(), serde_json::to_string_pretty(&content).unwrap_or_default()) {
+                        Ok(_) => {
+                            println!("✅ 维护窗口已设置");
+                            println!("   开始: {} (Unix timestamp)", s);
+                            println!("   结束: {} (Unix timestamp)", e);
+                            println!("   在此期间所有页面将转向 maintenance.html");
+                            println!("   CLI 将返回 'maintenance between {} and {}'", s, e);
+                        }
+                        Err(e) => eprintln!("❌ 写入失败: {}", e),
+                    }
+                }
+                _ => eprintln!("❌ 用法: maintenance set <开始时间戳> <结束时间戳>\n   时间戳为 Unix 秒数（可用 date +%s 获取当前）"),
+            }
+        }
+        Some("status") => {
+            let content = std::fs::read_to_string(maintenance_file()).unwrap_or_default();
+            if content.is_empty() {
+                println!("📅 维护状态: 未设置");
+                return;
+            }
+            if let Ok(val) = serde_json::from_str::<serde_json::Value>(&content) {
+                let start = val.get("maintenance_start").and_then(|v| v.as_u64()).unwrap_or(0);
+                let end = val.get("maintenance_end").and_then(|v| v.as_u64()).unwrap_or(0);
+                let now = std::time::SystemTime::now()
+                    .duration_since(std::time::UNIX_EPOCH)
+                    .unwrap_or_default()
+                    .as_secs();
+                if now >= start && now < end {
+                    println!("📅 维护中: {}-{} (还有 {} 秒)", start, end, end.saturating_sub(now));
+                } else if now < start {
+                    println!("📅 维护预定: {} ({} 秒后开始)", start, start.saturating_sub(now));
+                } else {
+                    println!("📅 维护已结束 (于 {} 结束)", end);
+                }
+            }
+        }
+        Some("clear") => {
+            let _ = std::fs::remove_file(maintenance_file());
+            println!("✅ 维护窗口已清除");
+        }
+        _ => {
+            eprintln!("用法: maintenance <set|status|clear>");
+        }
+    }
 }

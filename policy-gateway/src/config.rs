@@ -11,6 +11,16 @@
 //!   macOS:   ~/.policy-gateway/config.toml
 //!   Windows: %USERPROFILE%\.policy-gateway\config.toml
 
+/// 计算 SHA256 哈希
+pub fn hash_token(token: &str) -> String {
+    hex::encode(ring::digest::digest(&ring::digest::SHA256, token.as_bytes()))
+}
+
+/// 验证 Token 是否匹配哈希
+pub fn verify_token(token: &str, hash: &str) -> bool {
+    hash_token(token) == hash
+}
+
 use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
 
@@ -46,8 +56,8 @@ impl Default for TlsProfile {
 pub struct Config {
     /// 服务器连接地址 (CLI 用)
     pub server_url: String,
-    /// 管理 Token
-    pub manager_token: String,
+    /// 管理 Token (SHA256 哈希，明文仅设置时存在)
+    pub manager_token_hash: String,
     /// 监听地址 (服务端用)
     pub listen_addr: String,
     /// 监听端口 (服务端用)
@@ -82,7 +92,7 @@ impl Default for Config {
     fn default() -> Self {
         Self {
             server_url: "http://localhost:8443".into(),
-            manager_token: String::new(),
+            manager_token_hash: hash_token(""),
             listen_addr: "0.0.0.0".into(),
             listen_port: 8443,
             enable_html: true,
@@ -126,7 +136,7 @@ impl Config {
     /// 应用环境变量覆盖
     fn apply_env(mut self) -> Self {
         if let Ok(v) = std::env::var("PG_SERVER_URL") { self.server_url = v; }
-        if let Ok(v) = std::env::var("PG_MANAGER_TOKEN") { self.manager_token = v; }
+        if let Ok(v) = std::env::var("PG_MANAGER_TOKEN") { self.manager_token_hash = hash_token(&v); }
         if let Ok(v) = std::env::var("PG_LISTEN_ADDR") { self.listen_addr = v; }
         if let Ok(v) = std::env::var("PG_LISTEN_PORT") { self.listen_port = v.parse().unwrap_or(8443); }
         if let Ok(v) = std::env::var("PG_ENABLE_HTML") { self.enable_html = v == "true" || v == "1"; }
@@ -164,7 +174,11 @@ impl Config {
         println!();
         
         Config::prompt("服务器地址", &mut self.server_url);
-        Config::prompt("管理 Token", &mut self.manager_token);
+        let mut token_str = String::new();
+        Config::prompt("管理 Token (留空=不修改)", &mut token_str);
+        if !token_str.is_empty() {
+            self.manager_token_hash = hash_token(&token_str);
+        }
         let mut port = self.listen_port.to_string();
         Config::prompt("监听端口", &mut port);
         self.listen_port = port.parse().unwrap_or(8443);

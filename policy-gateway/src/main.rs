@@ -113,6 +113,24 @@ async fn start_server(serve_html: bool) {
     {
         let mut registry = modules::ModuleRegistry::new();
 
+        // 检查维护模式
+        let maintenance_path = "/etc/backup/policy-gateway/maintenance.json";
+        let in_maintenance = std::fs::read_to_string(maintenance_path).ok().and_then(|s| {
+            serde_json::from_str::<serde_json::Value>(&s).ok()
+        }).and_then(|v| {
+            let start = v.get("maintenance_start").and_then(|t| t.as_u64())?;
+            let end = v.get("maintenance_end").and_then(|t| t.as_u64())?;
+            let now = std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH).ok()?.as_secs();
+            Some(now >= start && now < end)
+        }).unwrap_or(false);
+
+        if in_maintenance {
+            log::warn!("🛠️  维护模式激活 — 所有页面将转向 maintenance.html");
+            log::warn!("   CLI 返回 'maintenance between X and Y'");
+        }
+        let mut registry = modules::ModuleRegistry::new();
+
         // 尝试加载 storage-more 模块
         let cfg = crate::config::Config::load();
         let storage_backend = cfg.storage_backend.clone();
@@ -508,7 +526,7 @@ async fn cli_mode(args: &[String]) {
 
             // 保存配置
             let mut cfg = crate::config::Config::load();
-            cfg.manager_token = token.clone();
+            cfg.manager_token_hash = crate::config::hash_token(&token);
             if tls_cert_path.exists() && tls_key_path.exists() {
                 cfg.tls_cert = Some(tls_cert_path.to_str().unwrap().to_string());
                 cfg.tls_key = Some(tls_key_path.to_str().unwrap().to_string());
