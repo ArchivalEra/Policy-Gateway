@@ -26,12 +26,16 @@ pub fn portal_router(state: std::sync::Arc<CoreState>) -> Router {
         .route("/healthz", get(healthz));
 
     #[cfg(feature = "frontend")]
-    {
+    if state.serve_html {
         router = router
             .route("/signup", get(crate::api::signup::handle_form))
             .route("/signup/status", get(crate::api::status::handle_html))
             .route("/manager", get(crate::api::manager::handle_page))
             .route("/", get(root_handler));
+    }
+    #[cfg(not(feature = "frontend"))]
+    if state.serve_html {
+        log::warn!("serve_html=true 但编译时未启用 frontend feature");
     }
 
     router.with_state(state)

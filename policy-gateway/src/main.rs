@@ -38,8 +38,14 @@ async fn main() {
     ).init();
 
     // CLI 模式
-    let args: Vec<String> = std::env::args().collect();
+    let mut args: Vec<String> = std::env::args().collect();
+    let mut serve_html = true;
     if args.len() > 1 {
+        // Check for runtime flags before CLI mode
+        if args[1] == "--no-html" || args[1] == "--api-only" {
+            serve_html = false;
+            args.remove(1);
+        }
         if args[1] == "--version" || args[1] == "-V" {
             println!("policy-gateway v{}", env!("CARGO_PKG_VERSION"));
             return;
@@ -72,6 +78,7 @@ async fn main() {
         ca_key_pem: ca_key,
         ca_cert_pem: ca_cert,
         event_log: Arc::new(RwLock::new(crate::event_log::EventLog::new())),
+        serve_html,
     });
 
     // 初始化 redb 持久化

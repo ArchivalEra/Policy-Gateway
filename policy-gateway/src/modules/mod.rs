@@ -19,6 +19,7 @@ pub struct CoreState {
     pub ca_key_pem: String,
     pub ca_cert_pem: String,
     pub event_log: Arc<RwLock<crate::event_log::EventLog>>,
+    pub serve_html: bool,
 }
 
 // 模块定义：一个模块 = 名 + 路由 + 初始化
