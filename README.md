@@ -154,6 +154,9 @@ policy-gateway-vm rollback test   # Rollback
 | 3.1 | i18n zh/en, QUIC module notice |
 | 3.2 | TLS framework, nftables autodeploy, procd, vm-worker |
 | **3.3** 🎯 | **Router-deployed v0.3.3, store panic fix, storage abstraction** |
+| 3.4 | storage-more module, bit claim, core freeze |
+| 3.5 | Token hashing, VM hot-update, maintenance mode |
+| **3.6** 🎯 | **worker-sync, root cert two-phase, Worker /api/sync** |
 
 - ✅ Core loop: signup → approve → active
 - ✅ Ed25519 CA with two-phase commit

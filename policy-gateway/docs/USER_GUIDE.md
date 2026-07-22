@@ -72,12 +72,32 @@ policy-gateway-vm list              # 查看所有快照
 policy-gateway-vm verify            # 校验完整性
 ```
 
+## Worker 同步
+
+如果部署了 Cloudflare Worker，可以配置双向同步：
+
+```bash
+policy-gateway config edit
+  worker_url: https://your-worker.pages.dev
+  worker_token: <与 Worker 端 WORKER_TOKEN 一致>
+  worker_sync_interval: 300
+```
+
+启动后自动同步，离线缓存、上线追补。
+
 ## 恢复
 
-如果根证书丢失:
-1. 访问 Worker 部署的 `/recover` 页面
-2. 输入预置的 `RECOVERY_TOKEN`
-3. 下载新签发的根证书
-4. 安装证书后访问 `/manager`
+### 恢复途径
 
-恢复 Token 在 `/etc/config/policy-gateway/seed.json` 中（首次运行 `init` 生成）。
+| 途径 | 依赖 | 说明 |
+|------|------|------|
+| 短码 | 本地 | 8 位恢复码，SHA256 验证，不依赖 Worker |
+| 证书加密 | 本地 | 根证书文件本身可恢复，默认可用 |
+| Worker | Cloudflare | `/recover` 页面，Token 验证 |
+
+### 首次初始化
+
+```bash
+policy-gateway init              # 生成根证书 (pending)
+policy-gateway init --confirm    # 验证恢复途径后激活
+```
