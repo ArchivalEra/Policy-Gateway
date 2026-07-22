@@ -1,89 +1,107 @@
-# 🔐 policy-gateway — CA 证书签发网关
+# 🔐 policy-gateway
 
-**没证书不能上网。** 路由器用 Ed25519 签发证书，权限在位图里，两阶段确认后放行。
+**No certificate, no internet.** Router signs certs with Ed25519, permissions in a bitmap, two-phase confirm before allowing traffic.
 
 [![CI](https://github.com/ArchivalEra/Worker-Router-Gateway/actions/workflows/ci.yml/badge.svg)](https://github.com/ArchivalEra/Worker-Router-Gateway/actions/workflows/ci.yml)
-[![AGPL-3.0](https://img.shields.io/badge/license-AGPL--3.0-blue)](../LICENSE)
+[![AGPL-3.0](https://img.shields.io/badge/license-AGPL--3.0-blue)](LICENSE)
 ![Rust](https://img.shields.io/badge/rust-1.96+-orange)
 
+[📖 中文版](README.zh.md)
+
 ```
-设备 → CSR → CA 签名(Ed25519) → 客户端确认 → 上网
+Device → CSR → CA sign(Ed25519) → Client confirm → Internet access
 ```
 
-## 快速开始
+## Quick start
 
 ```bash
 git clone https://github.com/ArchivalEra/Worker-Router-Gateway.git
 cd policy-gateway
-cargo test    # 31 测试, 0 警告
-./build.sh    # 编译 main + VM
-MANAGER_TOKEN=test cargo run
+cargo test    # 41 tests, 0 warnings
+cargo build --release
+MANAGER_TOKEN=test ./target/release/policy-gateway serve
 ```
 
-浏览器打开 `http://localhost:8443/manager?token=test`
+Open `http://localhost:8443/manager?token=test`
 
-## 架构
+## Architecture
 
 ```
 ┌────────────────────────────────────────────┐
-│  核心 (Rust, event-driven, 零 unsafe)      │
-│  CA 引擎       权限表       设备追踪       │
-│  Ed25519       位图(u64)    device_id      │
-│  sign_csr      GC 规则      复用检测       │
+│  Core (Rust, event-driven, zero unsafe)    │
+│  CA engine     Permission tbl   Device ID  │
+│  Ed25519       Bitmap(u64)     GC rules    │
+│  sign_csr      Reuse detection  EventLog   │
 ├────────────────────────────────────────────┤
-│  signup        confirm      manager        │
-│  CSR/pubkey    两阶段确认    审批面板       │
+│  signup        confirm         manager     │
+│  CSR/pubkey    Two-phase       Admin page  │
 ├────────────────────────────────────────────┤
-│  CLI            VM           Worker         │
-│  perm gc/list  安装/回滚    纯恢复模块     │
+│  CLI           VM              Worker      │
+│  perm gc/list  Install/rollbk  Recovery    │
 └────────────────────────────────────────────┘
 ```
 
-## 组件
+## Components
 
-| 组件 | 说明 |
-|------|------|
-| `policy-gateway` | 主程序: HTTP 服务 + CA 引擎 + CLI |
-| `policy-gateway-vm` | 不死鸟: 独立版本管理 (安装/快照/回滚) |
-| `worker/` | Cloudflare Worker: 仅根证书恢复 |
+| Component | Description |
+|-----------|-------------|
+| `policy-gateway` | Main binary: HTTP server + CA engine + CLI |
+| `policy-gateway-vm` | Snapshot manager: install/rollback (standalone binary) |
+| `worker/vm-worker` | Cloudflare Pages: minimal recovery (/recover) |
 
-## 文档
+## Documentation
 
 | | |
 |------|------|
-| 核心架构 | [`PLAN.md`](../PLAN.md) |
-| 编译指南 | [`policy-gateway/README.md`](../policy-gateway/README.md) |
-| 用户手册 | [`policy-gateway/docs/USER_GUIDE.md`](../policy-gateway/docs/USER_GUIDE.md) |
-| 交叉编译 | [`policy-gateway/docs/CROSS_COMPILE.md`](../policy-gateway/docs/CROSS_COMPILE.md) |
-| 维护规章 | [`policy-gateway/docs/MAINTENANCE.md`](../policy-gateway/docs/MAINTENANCE.md) |
-| 模块指南 | [`policy-gateway/docs/MODULE_GUIDE.md`](../policy-gateway/docs/MODULE_GUIDE.md) |
-| MCU 教程 | 运行后访问 `/api/help?topic=mcu` |
-| Worker 镜像 | 核心: `/recover` 仅恢复; 扩展: `vm-mod-worker` + `policy-gateway-mirror` 模块 |
+| Architecture | [`PLAN.md`](PLAN.md) |
+| Build guide | [`policy-gateway/README.md`](policy-gateway/README.md) |
+| User guide (zh) | [`policy-gateway/docs/USER_GUIDE.md`](policy-gateway/docs/USER_GUIDE.md) |
+| Cross compile | [`policy-gateway/docs/CROSS_COMPILE.md`](policy-gateway/docs/CROSS_COMPILE.md) |
+| Maintenance | [`policy-gateway/docs/MAINTENANCE.md`](policy-gateway/docs/MAINTENANCE.md) |
+| Module guide | [`policy-gateway/docs/MODULE_GUIDE.md`](policy-gateway/docs/MODULE_GUIDE.md) |
+| MCU tutorial | Visit `/api/help?topic=mcu` after starting |
 
-## 快速部署 (OpenWrt/ImmortalWrt)
+## Deploy (OpenWrt / ImmortalWrt)
 
 ```bash
-# 1. 安装 VM
+# 1. Install VM
 scp policy-gateway-vm root@<router-ip>:/usr/sbin/
 ssh root@<router-ip> "policy-gateway-vm init"
 
-# 2. 安装主程序 (交叉编译后)
+# 2. Install main binary (cross-compiled)
 scp policy-gateway root@<router-ip>:/tmp/
 ssh root@<router-ip> "policy-gateway-vm install /tmp/policy-gateway"
 
-# 3. 启动
-ssh root@<router-ip> "MANAGER_TOKEN=<your-token> policy-gateway &"
+# 3. Start
+ssh root@<router-ip> "MANAGER_TOKEN=<token> policy-gateway serve &"
 ```
-
-浏览器打开 `http://<router-ip>:8443/manager?token=<your-token>`
 
 ## CLI
 
 ```bash
-policy-gateway --version          # v0.2.7
-policy-gateway --help             # 命令列表
-policy-gateway init               # 首次设置 (生成根证书 + token)
-policy-gateway perm gc            # GC 过期条目
-policy-gateway vm snapshot test   # 快照
-policy-gateway-vm rollback test   # 回滚
+policy-gateway serve              # Start web server
+policy-gateway init               # First setup (generate CA + token)
+policy-gateway config edit        # Interactive config
+policy-gateway perm gc            # GC expired entries
+policy-gateway-vm snapshot test   # Create snapshot
+policy-gateway-vm rollback test   # Rollback
 ```
+
+## Status
+
+| Phase | Content |
+|-------|---------|
+| 0.5 | Core portal + permission table + GC |
+| 1 | Recovery + CLI + nftables integration |
+| 1.1 | nftables dual-table |
+| 1.5 | Maintenance manual + experiment rules |
+| 1.5-2 | CA engine (generate_ca / sign_csr) |
+| 2.0 | PendingConfirm + hw_id / hw_platform |
+| 2.2 | device_id + security review + 0 warnings |
+| 2.5 | Public release prep |
+| 2.7 | CLI + EventLog + frontend gate |
+| 2.8 | Worker Pages deploy + module guide |
+| 2.9 | Restructure: API-first, CLI skeleton |
+| 3.0 | Unified config + rclone-style CLI + TLS profile |
+| 3.1 | i18n zh/en + QUIC notice |
+| **3.2** 🔄 | **TLS framework + nftables autodeploy + procd + vm-worker merge** |
