@@ -3,4 +3,4 @@ build-std = ["core", "alloc", "std"]
 build-std-features = ["panic_immediate_abort"]
 
 [target.mipsel-unknown-linux-musl]
-linker = "/home/archivalera/reasonix-work/remote opening/policy-gateway/mipsel-linux-musl-cross/bin/mipsel-linux-musl-gcc"
+linker = "$HOME/reasonix-work/remote opening/policy-gateway/mipsel-linux-musl-cross/bin/mipsel-linux-musl-gcc"

@@ -16,7 +16,7 @@
 
 ```bash
 TOOLDIR="policy-gateway/.toolchain"
-SYS_TC="/home/archivalera/.rustup/toolchains/stable-x86_64-unknown-linux-gnu"
+SYS_TC="$HOME/.rustup/toolchains/stable-x86_64-unknown-linux-gnu"
 MY_TC="$TOOLDIR/rustup-home-N/toolchains/stable-x86_64-unknown-linux-gnu"
 
 mkdir -p "$MY_TC/bin" "$MY_TC/lib"
