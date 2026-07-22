@@ -129,7 +129,10 @@ async fn start_server(serve_html: bool) {
         }
 
         let table = core.auth_table.read().await;
-        if table.is_empty() {
+        let needs_seed = table.is_empty();
+        drop(table);  // 释放读锁，避免后续写锁死锁
+
+        if needs_seed {
             log::warn!("🆕 首次启动 — 权限表为空");
             // 尝试加载 seed.json
             let seed_paths = [
@@ -173,7 +176,7 @@ async fn start_server(serve_html: bool) {
                     }
                 }
             }
-            if !seeded {
+    if !seeded {
                 log::warn!("   ⚠️  未找到 seed.json");
                 log::warn!("   首次使用请运行: policy-gateway init");
                 log::warn!("    或参考 deploy/bootstrap.sh 生成根证书");
@@ -185,7 +188,6 @@ async fn start_server(serve_html: bool) {
     let app = Router::new()
         .merge(modules::portal::portal_router(core.clone()));
 
-    // 后台: 每小时 GC
     let gc_core = core.clone();
     tokio::spawn(async move {
         let mut interval = tokio::time::interval(tokio::time::Duration::from_secs(3600));
@@ -433,12 +435,60 @@ async fn cli_mode(args: &[String]) {
                 Ok(_) => println!("wrote {}", seed_path.display()),
                 Err(e) => eprintln!("write seed.json failed: {} (not root?)", e),
             }
+
+            // 生成自签名 TLS 证书
+            let home = std::env::var("HOME").unwrap_or_else(|_| "/tmp".to_string());
+            let tls_dir = std::path::Path::new(&home).join(".policy-gateway").join("tls");
+            std::fs::create_dir_all(&tls_dir).ok();
+            let tls_cert_path = tls_dir.join("cert.pem");
+            let tls_key_path = tls_dir.join("key.pem");
+
+            if !tls_cert_path.exists() || !tls_key_path.exists() {
+                let gen_result = std::process::Command::new("openssl")
+                    .args([
+                        "req", "-x509", "-newkey", "ed25519",
+                        "-keyout", tls_key_path.to_str().unwrap(),
+                        "-out", tls_cert_path.to_str().unwrap(),
+                        "-days", "3650", "-nodes",
+                        "-subj", "/CN=policy-gateway/O=policy-gateway-self-signed",
+                    ])
+                    .output();
+
+                match gen_result {
+                    Ok(out) if out.status.success() => {
+                        println!("✅ TLS cert -> {}", tls_cert_path.display());
+                        println!("✅ TLS key  -> {}", tls_key_path.display());
+                    }
+                    _ => {
+                        println!("⚠️ openssl not available, TLS cert not generated");
+                        println!("   run: openssl req -x509 -newkey ed25519 -keyout ~/.policy-gateway/tls/key.pem \\");
+                        println!("         -out ~/.policy-gateway/tls/cert.pem -days 3650 -nodes");
+                    }
+                }
+            } else {
+                println!("✅ TLS cert already exists: {}", tls_cert_path.display());
+            }
+
+            // 保存配置
+            let mut cfg = crate::config::Config::load();
+            cfg.manager_token = token.clone();
+            if tls_cert_path.exists() && tls_key_path.exists() {
+                cfg.tls_cert = Some(tls_cert_path.to_str().unwrap().to_string());
+                cfg.tls_key = Some(tls_key_path.to_str().unwrap().to_string());
+            }
+            cfg.save().ok();
+
             println!();
             println!("setup complete!");
             println!("  root cert SHA256: {}", hex::encode(sha256));
             println!("  manager token:    {}", token);
             println!("  http://<router-ip>:8443/manager?token={}", token);
             println!("  save this token! lost it -> use Worker recovery.");
+            if tls_cert_path.exists() {
+                println!("  TLS enabled. HTTPS on port 443.");
+            }
+            println!();
+            println!("  next: policy-gateway serve");
         }
         Some("module") => {
             println!("📦 模块系统 v0.1");
