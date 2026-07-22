@@ -202,6 +202,10 @@ pub async fn handle_approve(
             match table.reject(&req.request_id) {
                 Some(entry) => {
                     log::info!("❌ 拒绝: {}", req.request_id);
+                    // 记录事件
+                    state.event_log.write().await.push(entry.sha256,
+                        crate::event_log::EventKind::Rejected,
+                        "admin".into(), None);
                     let sha256_hex = hex::encode(entry.sha256);
                     if let Ok(entry_json) = serde_json::to_string(entry) {
                         let _ = crate::store::put(&sha256_hex, &entry_json).await;

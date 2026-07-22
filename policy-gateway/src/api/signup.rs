@@ -111,6 +111,13 @@ async fn handle_csr(
         }
         // 存入 pending_confirm（跳过审批，CA 签发即可信）
         let bitmap = parse_requested_bitmap(req.requested.as_deref());
+        // 记录事件: 证书提交
+        let submit_kind = crate::event_log::EventKind::Submitted {
+            hostname: req.hostname.clone(),
+            requested_bitmap: bitmap,
+        };
+        state.event_log.write().await.push(sha256, submit_kind, "device".into(), req.device_id.clone());
+
         table.add_pending_with_hw(sha256, req.hostname.clone(), request_id.clone(), bitmap, EntryStatus::PendingConfirm, req.hw_id.clone(), req.hw_platform.clone(), req.device_id.clone());
     }
 
