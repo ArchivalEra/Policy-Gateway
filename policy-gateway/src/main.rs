@@ -127,6 +127,16 @@ async fn start_server(serve_html: bool) {
             Err(e) => log::warn!("📦 storage-more: {} — bit 3,4 已锁定", e),
         }
 
+        // 加载 dns-local 模块
+        let cfg2 = crate::config::Config::load();
+        if !cfg2.dns_hosts.is_empty() {
+            let dns = modules::dns_local::DnsLocal::new(&cfg2.dns_hosts);
+            match registry.register(Box::new(dns)) {
+                Ok(_) => log::info!("📦 dns-local: 自定义 DNS 映射已加载"),
+                Err(e) => log::warn!("📦 dns-local: {}", e),
+            }
+        }
+
         log::info!("🔒 锁定权限位: 活动 {:?}, 锁定 {} 个",
             registry.active_bits(),
             registry.locked_bits().len());

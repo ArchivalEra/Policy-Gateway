@@ -66,6 +66,10 @@ pub struct Config {
     pub storage_bucket: Option<String>,
     /// Mirror Worker URL (storage_backend="mirror" 时)
     pub mirror_worker_url: Option<String>,
+    /// 自定义 DNS 映射 (host → IP, 仅在路由器生效)
+    pub dns_hosts: Vec<String>,  // 格式: "域名=IP", 如 "ca.网站=192.168.1.1"
+    /// 是否允许直接访问网关 IP (不经域名)
+    pub allow_direct_ip: bool,
     /// TLS 证书路径 (可选)
     pub tls_cert: Option<String>,
     /// TLS 密钥路径 (可选)
@@ -91,6 +95,8 @@ impl Default for Config {
             storage_endpoint: None,
             storage_bucket: None,
             mirror_worker_url: None,
+            dns_hosts: vec![],
+            allow_direct_ip: true,
         }
     }
 }
