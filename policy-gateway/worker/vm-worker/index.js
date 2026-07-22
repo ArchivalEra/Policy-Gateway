@@ -75,6 +75,31 @@ export default {
       return json({ error: '恢复码错误' }, 403);
     }
 
+    // --- 同步端点 ---
+    if (path === '/api/sync/push' && method === 'POST') {
+      const body = await request.json();
+      const auth = request.headers.get('X-Sync-Token') || body.token;
+      if (auth !== env.WORKER_TOKEN) return json({ error: 'unauthorized' }, 401);
+      
+      // Store incoming events in KV
+      const events = body.events || [];
+      if (events.length > 0) {
+        const key = `sync:router:${Date.now()}`;
+        await env[RECOVERY_KV].put(key, JSON.stringify(events));
+      }
+      return json({ status: 'ok', received: events.length });
+    }
+
+    if (path === '/api/sync/pull' && method === 'GET') {
+      const auth = url.searchParams.get('token');
+      if (auth !== env.WORKER_TOKEN) return json({ error: 'unauthorized' }, 401);
+      
+      // Return pending events for the router
+      const events = [];
+      // TODO: list KV keys with prefix and return pending events
+      return json({ status: 'ok', events });
+    }
+
     // --- 404 ---
     return new Response('Not Found', { status: 404 });
   },

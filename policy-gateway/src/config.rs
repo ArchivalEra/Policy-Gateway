@@ -76,6 +76,12 @@ pub struct Config {
     pub storage_bucket: Option<String>,
     /// Mirror Worker URL (storage_backend="mirror" 时)
     pub mirror_worker_url: Option<String>,
+    /// Worker (Pages) URL, 用于同步和数据恢复
+    pub worker_url: Option<String>,
+    /// Worker 通信 Token（路由器 → Worker 认证用）
+    pub worker_token: Option<String>,
+    /// 与 Worker 同步间隔（秒），默认 300
+    pub worker_sync_interval: u64,
     /// 自定义 DNS 映射 (host → IP, 仅在路由器生效)
     pub dns_hosts: Vec<String>,  // 格式: "域名=IP", 如 "ca.网站=192.168.1.1"
     /// 是否允许直接访问网关 IP (不经域名)
@@ -105,6 +111,9 @@ impl Default for Config {
             storage_endpoint: None,
             storage_bucket: None,
             mirror_worker_url: None,
+            worker_url: None,
+            worker_token: None,
+            worker_sync_interval: 300,
             dns_hosts: vec![],
             allow_direct_ip: true,
         }
@@ -153,6 +162,9 @@ impl Config {
         if let Ok(v) = std::env::var("PG_STORAGE_ENDPOINT") { self.storage_endpoint = Some(v); }
         if let Ok(v) = std::env::var("PG_STORAGE_BUCKET") { self.storage_bucket = Some(v); }
         if let Ok(v) = std::env::var("PG_MIRROR_URL") { self.mirror_worker_url = Some(v); }
+        if let Ok(v) = std::env::var("PG_WORKER_URL") { self.worker_url = Some(v); }
+        if let Ok(v) = std::env::var("PG_WORKER_TOKEN") { self.worker_token = Some(v); }
+        if let Ok(v) = std::env::var("PG_WORKER_SYNC_INTERVAL") { self.worker_sync_interval = v.parse().unwrap_or(300); }
         self
     }
 

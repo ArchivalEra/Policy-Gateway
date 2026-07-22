@@ -1,6 +1,7 @@
 pub mod portal;
 pub mod storage_more;
 pub mod dns_local;
+pub mod worker_sync;
 // 模块系统 — 核心可扩展框架
 //
 // 核心只做认证+门户，所有业务功能（计算、存储、前端）都是模块。

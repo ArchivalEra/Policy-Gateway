@@ -160,6 +160,15 @@ async fn start_server(serve_html: bool) {
             }
         }
 
+        // 加载 worker-sync 模块（配置了 worker_url 时）
+        if let (Some(url), Some(token)) = (cfg2.worker_url.as_ref(), cfg2.worker_token.as_ref()) {
+            let sync = modules::worker_sync::WorkerSync::new(url, token, cfg2.worker_sync_interval);
+            match registry.register(Box::new(sync)) {
+                Ok(_) => log::info!("📡 worker-sync: 已注册 (interval={}s)", cfg2.worker_sync_interval),
+                Err(e) => log::warn!("📡 worker-sync: {}", e),
+            }
+        }
+
         log::info!("🔒 锁定权限位: 活动 {:?}, 锁定 {} 个",
             registry.active_bits(),
             registry.locked_bits().len());
@@ -538,6 +547,25 @@ async fn cli_mode(args: &[String]) {
             }
             cfg.save().ok();
 
+            println!();
+            println!("⚠️  根证书待验证");
+            println!("   在信任此设备之前, 请验证至少一种恢复途径可用:");
+            println!();
+            println!("   1. 本地短码恢复:");
+            println!("      policy-gateway recovery setup-shortcode");
+            println!("      然后重启服务, 确认能通过短码恢复");
+            println!();
+            println!("   2. Worker 远程恢复:");
+            println!("      部署 vm-worker 到 Cloudflare Pages,");
+            println!("      设置 worker_url 和 worker_token,");
+            println!("      访问 /recover 页面验证恢复流程");
+            println!();
+            println!("   3. 证书加密恢复 (默认可用):");
+            println!("      根证书文件本身即可恢复, 无需配置");
+            println!();
+            println!("   完成验证后运行:");
+            println!("      policy-gateway init --confirm");
+            println!("      (将根证书从 pending 转为 active)");
             println!();
             println!("setup complete!");
             println!("  root cert SHA256: {}", hex::encode(sha256));
