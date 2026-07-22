@@ -180,6 +180,10 @@ pub async fn handle_approve(
             match table.approve(&req.request_id, filtered_bitmap) {
                 Some(entry) => {
                     log::info!("✅ 批准: {} ({})", req.request_id, entry.hostname);
+                    // 记录事件
+                    state.event_log.write().await.push(entry.sha256,
+                        crate::event_log::EventKind::Approved { bitmap: filtered_bitmap },
+                        "admin".into(), None);
                     // 持久化到 redb
                     let sha256_hex = hex::encode(entry.sha256);
                     if let Ok(entry_json) = serde_json::to_string(entry) {

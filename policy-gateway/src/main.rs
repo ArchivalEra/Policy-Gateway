@@ -71,6 +71,7 @@ async fn main() {
         anti_abuse: Arc::new(RwLock::new(anti_abuse::AntiAbuse::new())),
         ca_key_pem: ca_key,
         ca_cert_pem: ca_cert,
+        event_log: Arc::new(RwLock::new(crate::event_log::EventLog::new())),
     });
 
     // 初始化 redb 持久化

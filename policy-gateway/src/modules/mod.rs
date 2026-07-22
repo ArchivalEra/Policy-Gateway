@@ -18,6 +18,7 @@ pub struct CoreState {
     pub anti_abuse: Arc<RwLock<AntiAbuse>>,
     pub ca_key_pem: String,
     pub ca_cert_pem: String,
+    pub event_log: Arc<RwLock<crate::event_log::EventLog>>,
 }
 
 // 模块定义：一个模块 = 名 + 路由 + 初始化
