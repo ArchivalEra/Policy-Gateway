@@ -12,6 +12,7 @@ use axum::http::StatusCode;
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 use uuid::Uuid;
+use crate::lang::{t, S};
 
 use crate::AppState;
 use crate::auth::EntryStatus;
@@ -67,7 +68,7 @@ pub async fn handle(
     if let Some(ref cert_pem) = req.cert {
         return handle_self_signed(state, cert_pem, &req).await;
     }
-    Err((StatusCode::BAD_REQUEST, Json(ErrorResponse { error: "请提供 csr、pubkey 或 cert".into() })))
+    Err((StatusCode::BAD_REQUEST, Json(ErrorResponse { error: t(S::NeedCsrPubkey).into() })))
 }
 
 /// CA 签发模式: 接收 CSR → 签名 → pending_confirm
@@ -78,16 +79,16 @@ async fn handle_csr(
 ) -> Result<Json<SignupResponse>, (StatusCode, Json<ErrorResponse>)> {
     // 1. 验证 hostname
     if req.hostname.is_empty() || req.hostname.len() > 255 {
-        return Err((StatusCode::BAD_REQUEST, Json(ErrorResponse { error: "主机名不能为空且不超过 255 字符".into() })));
+        return Err((StatusCode::BAD_REQUEST, Json(ErrorResponse { error: "Hostname cannot be empty (max 255 chars)".into() })));
     }
     if req.hostname.chars().any(|c| c.is_control()) {
-        return Err((StatusCode::BAD_REQUEST, Json(ErrorResponse { error: "主机名包含不允许的字符".into() })));
+        return Err((StatusCode::BAD_REQUEST, Json(ErrorResponse { error: "Hostname contains invalid characters".into() })));
     }
 
     // 2. 解析 CSR
     let csr_info = match crate::tls::parse_csr(csr_pem) {
         Some(info) => info,
-        None => return Err((StatusCode::BAD_REQUEST, Json(ErrorResponse { error: "CSR 格式无效".into() }))),
+        None => return Err((StatusCode::BAD_REQUEST, Json(ErrorResponse { error: t(S::InvalidCsr).into() }))),
     };
 
     // 3. 确定角色
@@ -96,7 +97,7 @@ async fn handle_csr(
     // 4. CA 签名
     let cert_pem = match crate::tls::sign_csr(&csr_info, &state.ca_key_pem, &role) {
         Some(cert) => cert,
-        None => return Err((StatusCode::INTERNAL_SERVER_ERROR, Json(ErrorResponse { error: "证书签名失败".into() }))),
+        None => return Err((StatusCode::INTERNAL_SERVER_ERROR, Json(ErrorResponse { error: "Certificate signing failed".into() }))),
     };
 
     // 5. 计算 SHA256
@@ -107,7 +108,7 @@ async fn handle_csr(
     {
         let mut table = state.auth_table.write().await;
         if table.get(&sha256).is_some() {
-            return Err((StatusCode::CONFLICT, Json(ErrorResponse { error: "证书已存在".into() })));
+            return Err((StatusCode::CONFLICT, Json(ErrorResponse { error: "Certificate already exists".into() })));
         }
         // 存入 pending_confirm（跳过审批，CA 签发即可信）
         let bitmap = parse_requested_bitmap(req.requested.as_deref());
@@ -138,13 +139,13 @@ async fn handle_pubkey(
     req: &SignupRequest,
 ) -> Result<Json<SignupResponse>, (StatusCode, Json<ErrorResponse>)> {
     if req.hostname.is_empty() || req.hostname.len() > 255 {
-        return Err((StatusCode::BAD_REQUEST, Json(ErrorResponse { error: "主机名不能为空且不超过 255 字符".into() })));
+        return Err((StatusCode::BAD_REQUEST, Json(ErrorResponse { error: "Hostname cannot be empty (max 255 chars)".into() })));
     }
     // 验证 hex 格式
     let pubkey_bytes = match hex::decode(pubkey_hex) {
         Ok(b) if b.len() == 32 || b.len() == 33 => b, // Ed25519=32, ECDSA P-256=33
-        Ok(_) => return Err((StatusCode::BAD_REQUEST, Json(ErrorResponse { error: "公钥长度应为 32(Ed25519) 或 33(P-256) 字节".into() }))),
-        Err(_) => return Err((StatusCode::BAD_REQUEST, Json(ErrorResponse { error: "公钥不是有效的 hex 编码".into() }))),
+        Ok(_) => return Err((StatusCode::BAD_REQUEST, Json(ErrorResponse { error: t(S::PubkeyLen).into() }))),
+        Err(_) => return Err((StatusCode::BAD_REQUEST, Json(ErrorResponse { error: t(S::PubkeyNotHex).into() }))),
     };
     let pubkey_hex_padded = hex::encode(&pubkey_bytes);
     let role = parse_role(req.requested.as_deref());
@@ -158,11 +159,11 @@ async fn handle_pubkey(
     // 用 CA 密钥签名
     let pkcs8_der = match crate::tls::extract_pkcs8_from_pem(&state.ca_key_pem) {
         Some(d) => d,
-        None => return Err((StatusCode::INTERNAL_SERVER_ERROR, Json(ErrorResponse { error: "CA 密钥解码失败".into() }))),
+        None => return Err((StatusCode::INTERNAL_SERVER_ERROR, Json(ErrorResponse { error: "CA key decode failed".into() }))),
     };
     let ca_kp = match ring::signature::Ed25519KeyPair::from_pkcs8(&pkcs8_der) {
         Ok(kp) => kp,
-        Err(_) => return Err((StatusCode::INTERNAL_SERVER_ERROR, Json(ErrorResponse { error: "CA 密钥无效".into() }))),
+        Err(_) => return Err((StatusCode::INTERNAL_SERVER_ERROR, Json(ErrorResponse { error: "CA key invalid".into() }))),
     };
     let sig = ca_kp.sign(body.as_bytes());
     let sig_hex = hex::encode(sig.as_ref());
@@ -175,7 +176,7 @@ async fn handle_pubkey(
     {
         let mut table = state.auth_table.write().await;
         if table.get(&sha256).is_some() {
-            return Err((StatusCode::CONFLICT, Json(ErrorResponse { error: "证书已存在".into() })));
+            return Err((StatusCode::CONFLICT, Json(ErrorResponse { error: "Certificate already exists".into() })));
         }
         let bitmap = parse_requested_bitmap(req.requested.as_deref());
         table.add_pending_with_hw(sha256, req.hostname.clone(), request_id.clone(), bitmap,
@@ -199,14 +200,14 @@ async fn handle_self_signed(
     // 原始的解析 + 查重流程
     let cert = match parse_and_validate_cert(cert_pem) {
         Some(c) => c,
-        None => return Err((StatusCode::BAD_REQUEST, Json(ErrorResponse { error: "证书格式无效".into() }))),
+        None => return Err((StatusCode::BAD_REQUEST, Json(ErrorResponse { error: "Invalid certificate format".into() }))),
     };
     let sha256 = crate::tls::cert_sha256(&cert);
     let request_id = Uuid::new_v4().to_string();
     {
         let mut table = state.auth_table.write().await;
         if table.get(&sha256).is_some() {
-            return Err((StatusCode::CONFLICT, Json(ErrorResponse { error: "证书已存在".into() })));
+            return Err((StatusCode::CONFLICT, Json(ErrorResponse { error: "Certificate already exists".into() })));
         }
         let bitmap = parse_requested_bitmap(req.requested.as_deref());
         table.add_pending(sha256, req.hostname.clone(), request_id.clone(), bitmap);
@@ -333,6 +334,17 @@ btn.disabled=false;btn.textContent='提交申请';
 <p style="margin-top:20px;font-size:12px;color:#888">
 <a href="/manager">管理</a> · <a href="/permissions">权限表</a> · <a href="/api/help">教程</a>
 </p>
+
+<div style="margin-top:20px;font-size:12px;color:#888">
+  <a href="?lang=en">English</a> | <a href="?lang=zh">中文</a>
+</div>
+<script>
+(function(){{
+  var params = new URLSearchParams(window.location.search);
+  var lang = params.get('lang');
+  if (lang) {{ document.cookie = 'pg_lang=' + lang + ';path=/;max-age=86400'; }}
+}})();
+</script>
 </body></html>"#))
 }
 

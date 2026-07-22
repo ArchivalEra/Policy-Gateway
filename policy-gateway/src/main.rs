@@ -19,18 +19,17 @@ pub mod modules;
 pub mod store;  // redb 持久化
 pub mod event_log;  // 时间戳事件系统
 pub mod config;  // 统一配置
+pub mod lang;  // 国际化
 
 /// 共享状态别名（api 模块中使用）
 pub type AppState = modules::CoreState;
 
 use std::sync::Arc;
 use ring::signature::KeyPair as _;
-
-
 use tokio::sync::RwLock;
 use axum::Router;
-
 use modules::CoreState;
+use crate::lang::{t, S as _S};
 
 #[tokio::main(flavor = "current_thread")]
 async fn main() {
@@ -212,23 +211,24 @@ async fn start_server(serve_html: bool) {
 fn print_help() {
     println!("policy-gateway v{}", env!("CARGO_PKG_VERSION"));
     println!();
-    println!("用法:");
-    println!("  policy-gateway serve [--no-html]  启动网页服务 (默认含 HTML)");
-    println!("  policy-gateway --version, -V      显示版本");
-    println!("  policy-gateway --help, -h         显示此帮助");
-    println!("  policy-gateway perm <gc|list|stats> 权限表操作");
-    println!("  policy-gateway vm <command>        VM 管理 (委派)");
-    println!("  policy-gateway init               首次设置");
-    println!("  policy-gateway module             模块信息");
+    println!("{}", t(_S::CliUsage));
+    println!("  policy-gateway serve [--no-html]  {}", t(_S::CliServe));
+    println!("  policy-gateway --version, -V      {}", t(_S::CliVersion));
+    println!("  policy-gateway --help, -h         {}", t(_S::CliHelp));
+    println!("  policy-gateway perm <gc|list|stats> {}", t(_S::CliPerm));
+    println!("  policy-gateway vm <command>       {}", t(_S::CliVm));
+    println!("  policy-gateway config <edit|show|reset|tls> {}", t(_S::ConfigText));
+    println!("  policy-gateway init               {}", t(_S::CliInit));
+    println!("  policy-gateway module             {}", t(_S::CliModule));
     println!();
-    println!("VM 命令（通过 policy-gateway-vm 直接执行）:");
-    println!("  init      初始化备份目录");
-    println!("  install   安装/升级主程序");
-    println!("  snapshot  创建快照");
-    println!("  rollback  回滚");
-    println!("  list      列举快照");
-    println!("  status    查看状态");
-    println!("  verify    校验完整性");
+    println!("{} (policy-gateway-vm):", t(_S::CliVm));
+    println!("  init    {}", t(_S::CliVmInit));
+    println!("  install {}", t(_S::CliVmInstall));
+    println!("  snapshot {}", t(_S::CliVmSnapshot));
+    println!("  rollback {}", t(_S::CliVmRollback));
+    println!("  list    {}", t(_S::CliVmList));
+    println!("  status  {}", t(_S::CliVmStatus));
+    println!("  verify  {}", t(_S::CliVmVerify));
 }
 
 async fn cli_mode(args: &[String]) {

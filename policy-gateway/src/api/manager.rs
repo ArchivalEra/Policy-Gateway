@@ -11,6 +11,7 @@ use axum::http::StatusCode;
 use axum::{Json, response::Html};
 use once_cell::sync::Lazy;
 use serde::{Deserialize, Serialize};
+use crate::lang::{t, S};
 use std::sync::Arc;
 
 use crate::auth::BIT_CONNECTOR;
@@ -195,7 +196,7 @@ pub async fn handle_approve(
                     }))
                 }
                 None => Err((StatusCode::NOT_FOUND, Json(ApproveResponse {
-                    status: "error".into(), message: "申请 ID 不存在或已处理".into(),
+                    status: "error".into(), message: t(S::ReqNotFound).into(),
                 }))),
             }
         }
@@ -216,7 +217,7 @@ pub async fn handle_approve(
                     }))
                 }
                 None => Err((StatusCode::NOT_FOUND, Json(ApproveResponse {
-                    status: "error".into(), message: "申请 ID 不存在或已处理".into(),
+                    status: "error".into(), message: t(S::ReqNotFound).into(),
                 }))),
             }
         }
