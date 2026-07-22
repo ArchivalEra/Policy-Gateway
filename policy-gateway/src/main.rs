@@ -1,11 +1,11 @@
 //! policy-gateway — 模块化网关核心
 //!
-//! Phase 2.5: 模块化架构，核心只做认证门户 + 上网控制。
+//! Phase 3.3: 路由器部署验证 + storage 抽象 + v0.3.3。
 //! 计算模块已剥离为独立扩展（见 modules/compute/ 或 Worker 调度）。
 //!
 //! 启动后:
 //!   1. HTTP 服务监听 :8443
-//!   2. 门户模块提供 /signup /manager 等端点
+//!   2. nftables 自动部署双表 (pg_pre + pg_nat)
 //!   3. 后台 GC 每小时运行
 //!   4. TODO Phase 1: nftables captive portal 拦截无证设备
 
@@ -83,7 +83,11 @@ async fn start_server(serve_html: bool) {
     });
 
     // 初始化 redb 持久化
-    if let Err(e) = crate::store::init_store("/etc/config/policy-gateway/auth.redb") {
+    let db_path = "/etc/config/policy-gateway/auth.redb";
+    // 确保目录存在
+    if let Err(e) = std::fs::create_dir_all("/etc/config/policy-gateway") {
+        log::warn!("⚠️  无法创建数据目录: {}（权限表将在内存中运行）", e);
+    } else if let Err(e) = crate::store::init_store(db_path) {
         log::warn!("   ⚠️ redb 初始化失败: {}（权限表将在内存中运行）", e);
     } else {
         log::info!("   📀 持久化存储: /etc/config/policy-gateway/auth.redb");
