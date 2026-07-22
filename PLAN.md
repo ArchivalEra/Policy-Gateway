@@ -708,6 +708,99 @@ Phase 3.2    TLS 框架 + nftables 自动部署 + procd    ✅
 - 心跳超时断网（与 MIPS 理念相悖）
 ```
 
+## 十六、Phase 4.0 — Dart 跨平台 App
+
+### 动机
+
+任何有屏幕 + 有 AP 能力的设备（手机/平板/PC/单片机带屏）都可以通过此 App 管理网关。
+
+不需要浏览器，不需要 SSH。给非技术用户用的。
+
+### 技术选型
+
+```
+语言:          Dart 3.x
+框架:          Flutter (mobile) / Dart Frog (CLI 备选)
+平台:          Android / iOS / Linux / Windows / macOS
+网络层:        HTTP (直接调用 policy-gateway API)
+              可选: mqtt (事件推送)
+协议:          REST JSON (现有 API 完全不改动)
+```
+
+### 功能
+
+```
+首屏:
+  选择服务器: 扫描局域网 / 手动输入 URL
+  连接 → 自动检测是否根管理员 / 管理员 / 普通用户
+
+首页 (管理员):
+  待审批列表 (滑动批准/拒绝)
+  已授权设备列表 (查看/吊销)
+  在线状态 (绿色/灰色圆点)
+  快速操作: 批准 / 驳回 / 吊销证书
+
+首页 (普通用户):
+  我的证书 (状态: pending_confirm / active / rejected)
+  申请新证书 (从 CSR 文件导入或粘贴)
+
+设置页:
+  语言切换 (中文 / English)
+  主题 (亮/暗)
+  服务器 URL + Token 管理
+  通知开关
+
+设备管理:
+  主机名 + SHA256 + 权限位图 (可读显示)
+  硬件平台 + device_id 显示
+  最后在线时间
+  吊销证书
+```
+
+### 与后端的关系
+
+```
+零耦合:
+  App <── HTTP JSON ──> policy-gateway API
+  App 不需要任何额外服务端支持
+  所有功能通过现有 API 端点实现
+
+需要新增的 API (可选):
+  GET  /api/devices           — 已授权设备列表 (含在线状态)
+  GET  /api/devices/:sha256   — 单个设备详情
+  POST /api/devices/:sha256/revoke — 吊销
+  以上 API 在 Phase 3.4 之前不存在，不影响 App 基础功能
+  (App 首版可暂时用 /api/manager/pending + /api/signup/status 凑合)
+```
+
+### 文件结构
+
+```
+app/
+  lib/
+    main.dart
+    api/
+      client.dart        # HTTP 客户端封装
+      models.dart        # 数据模型
+    pages/
+      home.dart          # 首页
+      login.dart         # 服务器选择/登录
+      pending.dart       # 待审批列表
+      devices.dart       # 设备列表
+      settings.dart      # 设置
+    widgets/
+      cert_badge.dart    # 证书状态徽章
+      device_card.dart   # 设备卡片
+    l10n/
+      app_zh.arb         # 中文字符串
+      app_en.arb         # 英文字符串
+  pubspec.yaml
+  android/
+  ios/
+  linux/
+  windows/
+```
+
 ---
 
 ## 十二、Phase 3.0 规划 — nftables 事件驱动 + QUIC 兼容
