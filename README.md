@@ -24,6 +24,12 @@ Device          Router (policy-gateway)
 ## Features
 
 - **Ed25519 CA** — signs certificates on the router with its own private key
+
+---
+
+*This project was born from a ¥45 newifi3 D2 (MT7621AT, 128MB RAM, 10MB SPI flash) bought on a second-hand market. Every design decision — single binary, no dynamic linking, bitmap permissions instead of certificate chains, nftables instead of iptables, zero-copy event log, sub-1MB UPX target — was forced by that hardware. If it runs on a decade-old MIPS router with 10MB of flash, it runs anywhere.*
+
+---
 - **Two-phase commit** — prevents ghost certificates on network drop
 - **Bitmap permissions** — 64-bit bitmap for fine-grained control (connector/admin/device/storage/compute)
 - **No mTLS overhead** — SHA256 whitelist lookup (O(1)), no certificate chain verification at runtime
