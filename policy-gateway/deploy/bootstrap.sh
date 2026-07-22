@@ -3,6 +3,12 @@
 #
 # 先跑这个，再 install.sh。确保你不会被锁在外面。
 #
+# 注意: 推荐使用 policy-gateway init 命令（更简洁，集成在程序中）
+#   policy-gateway init
+#   或通过 vm install 安装后运行: policy-gateway init
+#
+# bootstrap.sh 适用于没有 Rust 编译环境的场景。
+#
 # 用法:
 #   ./bootstrap.sh                    # 生成 root cert + 预配置文件
 #   ./bootstrap.sh --install          # 上述 + SCP 到路由器 + 安装

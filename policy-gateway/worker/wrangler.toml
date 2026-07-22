@@ -1,9 +1,8 @@
-name = "policy-gateway-recovery"
+name = "policy-gateway-core"
 main = "index.js"
 compatibility_date = "2025-07-01"
 
 # KV 命名空间（需手动创建）
-# wrangler kv:namespace create AUTH_TABLE
 [[kv_namespaces]]
 binding = "AUTH_TABLE"
 id = ""
