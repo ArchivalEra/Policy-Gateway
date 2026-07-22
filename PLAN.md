@@ -677,7 +677,7 @@ Phase 2.7🚀  VM install + /help + MCU + 全路由   ✅
 ### 进行中
 
 ```
-Phase 2.8    Worker 镜像 — vm-mod-worker (模块)            🔜  [docs/vm-mod-worker/](docs/vm-mod-worker/)
+Phase 2.8    vm-mod-worker (Pages 模块管理器) + policy-gateway-mirror   🔜
 Phase 3.0    nftables 事件驱动 + QUIC 兼容                      📋（本期）
 ```
 
