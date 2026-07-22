@@ -250,6 +250,7 @@ fn parse_and_validate_cert(pem_str: &str) -> Option<rustls::pki_types::Certifica
 }
 
 /// GET /signup — HTML 申请表单（浏览器用，含 Web Crypto CSR 生成）
+#[cfg(feature = "frontend")]
 pub async fn handle_form(
     State(state): State<Arc<AppState>>,
 ) -> Html<String> {

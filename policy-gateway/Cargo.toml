@@ -4,9 +4,10 @@ version = "0.2.7"
 edition = "2021"
 
 [features]
-default = ["minimize"]
+default = ["minimize", "frontend"]
+frontend = []
 minimize = []
-modelize = ["compute", "storage"]
+modelize = []
 
 compute = []
 storage = []

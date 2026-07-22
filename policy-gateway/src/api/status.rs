@@ -60,6 +60,7 @@ pub async fn handle(
 }
 
 /// GET /signup/status — HTML 状态页面（浏览器用）
+#[cfg(feature = "frontend")]
 pub async fn handle_html(
     State(state): State<Arc<AppState>>,
     Query(q): Query<StatusQuery>,

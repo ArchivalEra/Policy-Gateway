@@ -64,6 +64,7 @@ pub struct ApproveResponse {
 }
 
 /// GET /manager — 返回 HTML 审批页面
+#[cfg(feature = "frontend")]
 pub async fn handle_page(
     State(state): State<Arc<AppState>>,
     axum::extract::Query(params): axum::extract::Query<std::collections::HashMap<String, String>>,

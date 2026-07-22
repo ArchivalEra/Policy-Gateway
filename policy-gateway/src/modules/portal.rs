@@ -14,20 +14,27 @@ use axum::routing::{get, post};
 use super::CoreState;
 
 pub fn portal_router(state: std::sync::Arc<CoreState>) -> Router {
-    Router::new()
+    #[allow(unused_mut)]
+    let mut router = Router::new()
         .route("/api/signup", post(crate::api::signup::handle))
         .route("/api/signup/status", get(crate::api::status::handle))
-        .route("/signup/status", get(crate::api::status::handle_html))
-        .route("/manager", get(crate::api::manager::handle_page))
         .route("/api/manager/approve", post(crate::api::manager::handle_approve))
         .route("/api/cert-confirm", post(crate::api::confirm::handle))
-        .route("/permissions", get(crate::api::permissions::handle_page))
         .route("/api/manager/pending", get(crate::api::manager::handle_pending_json))
         .route("/api/help", get(crate::api::help::handle))
-        .route("/healthz", get(healthz))
-        .route("/signup", get(crate::api::signup::handle_form))
-        .route("/", get(root_handler))
-        .with_state(state)
+        .route("/permissions", get(crate::api::permissions::handle_page))
+        .route("/healthz", get(healthz));
+
+    #[cfg(feature = "frontend")]
+    {
+        router = router
+            .route("/signup", get(crate::api::signup::handle_form))
+            .route("/signup/status", get(crate::api::status::handle_html))
+            .route("/manager", get(crate::api::manager::handle_page))
+            .route("/", get(root_handler));
+    }
+
+    router.with_state(state)
 }
 
 pub fn portal_name() -> &'static str {
@@ -43,6 +50,7 @@ pub async fn healthz() -> axum::response::Json<serde_json::Value> {
     }))
 }
 
+#[cfg(feature = "frontend")]
 /// GET / — 简洁首页
 pub async fn root_handler() -> axum::response::Html<&'static str> {
     axum::response::Html(r#"<!DOCTYPE html>
