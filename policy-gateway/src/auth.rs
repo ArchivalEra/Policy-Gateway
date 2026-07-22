@@ -540,4 +540,56 @@ mod tests {
         assert_eq!(t.list_active().len(), 1);
         assert_eq!(t.list_compromised().len(), 1);
     }
+
+    #[test]
+    fn test_approve_reject_pending_cycle() {
+        let mut t = AuthTable::new();
+        let h = test_sha256(10);
+        t.add_pending(h, "cycle-test".into(), "req-cycle".into(), 0x05);
+        // 批准
+        let entry = t.approve("req-cycle", 0x05).unwrap();
+        assert_eq!(entry.bitmap, 0x05);
+        assert_eq!(entry.status, EntryStatus::Active);
+        // 重复批准 = 找不到 (已从 pending 移除)
+        assert!(t.approve("req-cycle", 0x05).is_none());
+        // 吊销
+        t.revoke(&h);
+        assert_eq!(t.get(&h).unwrap().status, EntryStatus::Compromised);
+    }
+
+    #[test]
+    fn test_confirm_then_approve() {
+        let mut t = AuthTable::new();
+        let h = test_sha256(11);
+        t.add_pending_with_hw(h, "confirm-test".into(), "req-conf".into(), 0x03,
+            EntryStatus::PendingConfirm, None, None, None);
+        // confirm
+        let entry = t.get_mut(&h).unwrap();
+        entry.status = EntryStatus::Active;
+        entry.bitmap = entry.requested_bitmap;
+        t.remove_pending("req-conf");
+        assert_eq!(t.get(&h).unwrap().status, EntryStatus::Active);
+        assert_eq!(t.get(&h).unwrap().bitmap, 0x03);
+        // list_active 应该包含它
+        assert!(t.list_active().iter().any(|e| e.sha256 == h));
+    }
+
+    #[test]
+    fn test_put_and_retrieve() {
+        let mut t = AuthTable::new();
+        let h = test_sha256(12);
+        let entry = PermissionEntry {
+            sha256: h, hostname: "put-test".into(), bitmap: 0xFF,
+            requested_bitmap: 0xFF, status: EntryStatus::Active,
+            mac: None, created_at: 1000, last_seen: Some(1000),
+            hw_id: Some("test-hw".into()), hw_platform: Some("linux".into()),
+            device_id: Some("test-device".into()),
+        };
+        t.put(h, entry);
+        let retrieved = t.get(&h).unwrap();
+        assert_eq!(retrieved.hostname, "put-test");
+        assert_eq!(retrieved.bitmap, 0xFF);
+        assert_eq!(retrieved.hw_id.as_deref(), Some("test-hw"));
+        assert!(t.iter().any(|e| e.sha256 == h));
+    }
 }
