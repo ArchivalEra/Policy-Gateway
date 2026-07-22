@@ -18,6 +18,7 @@ pub mod vm;  // VM — 始终包含，核心组件
 pub mod modules;
 pub mod store;  // redb 持久化
 pub mod event_log;  // 时间戳事件系统
+pub mod config;  // 统一配置
 
 /// 共享状态别名（api 模块中使用）
 pub type AppState = modules::CoreState;
@@ -49,7 +50,7 @@ async fn main() {
         return;
     }
     match args[1].as_str() {
-        "gui" | "serve" | "web" => {
+        "serve" | "gui" | "web" => {
             let serve_html = !args.iter().any(|a| a == "--no-html" || a == "--api-only");
             start_server(serve_html).await;
         }
@@ -212,13 +213,13 @@ fn print_help() {
     println!("policy-gateway v{}", env!("CARGO_PKG_VERSION"));
     println!();
     println!("用法:");
-    println!("  policy-gateway gui [--no-html]  启动网页服务 (默认含 HTML)");
-    println!("  policy-gateway --version, -V     显示版本");
-    println!("  policy-gateway --help, -h        显示此帮助");
+    println!("  policy-gateway serve [--no-html]  启动网页服务 (默认含 HTML)");
+    println!("  policy-gateway --version, -V      显示版本");
+    println!("  policy-gateway --help, -h         显示此帮助");
     println!("  policy-gateway perm <gc|list|stats> 权限表操作");
-    println!("  policy-gateway vm <command>       VM 管理 (委派)");
-    println!("  policy-gateway init              首次设置");
-    println!("  policy-gateway module            模块信息");
+    println!("  policy-gateway vm <command>        VM 管理 (委派)");
+    println!("  policy-gateway init               首次设置");
+    println!("  policy-gateway module             模块信息");
     println!();
     println!("VM 命令（通过 policy-gateway-vm 直接执行）:");
     println!("  init      初始化备份目录");
@@ -263,6 +264,31 @@ async fn cli_mode(args: &[String]) {
             }
         },
         Some("vm") => { vm::cli(&args[1..]); }
+        Some("config") => {
+            let mut cfg = crate::config::Config::load();
+            let sub = args.get(2).map(|s| s.as_str());
+            match sub {
+                Some("edit") | Some("interactive") | None => cfg.interactive(),
+                Some("show") | Some("dump") => {
+                    println!("{}", toml::to_string_pretty(&cfg).unwrap_or_default());
+                    return;
+                }
+                Some("reset") => {
+                    let default = crate::config::Config::default();
+                    default.save().ok();
+                    println!("✅ 配置已重置");
+                    return;
+                }
+                _ => {
+                    eprintln!("用法: policy-gateway config <edit|show|reset>");
+                    std::process::exit(1);
+                }
+            }
+            match cfg.save() {
+                Ok(_) => println!("✅ 配置已保存"),
+                Err(e) => eprintln!("❌ {}", e),
+            }
+        }
         Some("init") => {
             println!("policy-gateway first setup");
             println!();
