@@ -110,7 +110,7 @@ echo "     scp -P 22 target/mipsel/release/policy-gateway root@192.168.1.1:/usr/
 echo "     ssh -p 22 root@192.168.1.1 '/etc/init.d/policy-gateway start'"
 echo ""
 echo "  4. 浏览器打开："
-echo "     http://192.168.1.1:8443/manager?token=$TOKEN"
+echo "     http://<router-ip>:8443/manager?token=$TOKEN"
 echo "     导入根证书后即可登录"
 echo ""
 echo "  管理令牌: $TOKEN"
