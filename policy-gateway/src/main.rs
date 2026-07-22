@@ -38,26 +38,26 @@ async fn main() {
     ).init();
 
     // CLI 模式
-    let mut args: Vec<String> = std::env::args().collect();
-    let mut serve_html = true;
-    if args.len() > 1 {
-        // Check for runtime flags before CLI mode
-        if args[1] == "--no-html" || args[1] == "--api-only" {
-            serve_html = false;
-            args.remove(1);
-        }
-        if args[1] == "--version" || args[1] == "-V" {
-            println!("policy-gateway v{}", env!("CARGO_PKG_VERSION"));
-            return;
-        }
-        if args[1] == "--help" || args[1] == "-h" {
-            print_help();
-            return;
-        }
-        return cli_mode(&args).await;
-    }
+    let args: Vec<String> = std::env::args().collect();
 
-    log::info!("🔐 policy-gateway — 模块化核心");
+    if args.len() < 2 || args[1] == "--help" || args[1] == "-h" {
+        print_help();
+        return;
+    }
+    if args[1] == "--version" || args[1] == "-V" {
+        println!("policy-gateway v{}", env!("CARGO_PKG_VERSION"));
+        return;
+    }
+    match args[1].as_str() {
+        "gui" | "serve" | "web" => {
+            let serve_html = !args.iter().any(|a| a == "--no-html" || a == "--api-only");
+            start_server(serve_html).await;
+        }
+        _ => { cli_mode(&args).await; }
+    }
+}
+
+async fn start_server(serve_html: bool) {
     log::info!("   核心功能: 证书认证 + 上网控制");
     log::info!("   计算模块: 已剥离（通过 Worker 调度或部署 compute-daemon）");
 
@@ -212,13 +212,13 @@ fn print_help() {
     println!("policy-gateway v{}", env!("CARGO_PKG_VERSION"));
     println!();
     println!("用法:");
-    println!("  policy-gateway                     启动 HTTP 服务");
-    println!("  policy-gateway --version, -V       显示版本");
-    println!("  policy-gateway --help, -h          显示此帮助");
+    println!("  policy-gateway gui [--no-html]  启动网页服务 (默认含 HTML)");
+    println!("  policy-gateway --version, -V     显示版本");
+    println!("  policy-gateway --help, -h        显示此帮助");
     println!("  policy-gateway perm <gc|list|stats> 权限表操作");
-    println!("  policy-gateway vm <command>         VM 管理 (委派)");
-    println!("  policy-gateway init                首次设置");
-    println!("  policy-gateway module              模块信息");
+    println!("  policy-gateway vm <command>       VM 管理 (委派)");
+    println!("  policy-gateway init              首次设置");
+    println!("  policy-gateway module            模块信息");
     println!();
     println!("VM 命令（通过 policy-gateway-vm 直接执行）:");
     println!("  init      初始化备份目录");
