@@ -5,12 +5,12 @@
 No certificate? No internet. Devices must submit a CSR (or public key), get it signed by the router's Ed25519 CA, and confirm in two phases before the gateway allows traffic.
 
 [![CI](https://github.com/ArchivalEra/Worker-Router-Gateway/actions/workflows/ci.yml/badge.svg)](https://github.com/ArchivalEra/Worker-Router-Gateway/actions/workflows/ci.yml)
-[![AGPL-3.0](https://img.shields.io/badge/license-AGPL--3.0-blue)](LICENSE)
+[![AGPL-3.0](https://img.shields.io/badge/license-AGPL--3.0-blue)](https://github.com/ArchivalEra/Policy-Gateway/blob/main/LICENSE)
 ![Rust](https://img.shields.io/badge/rust-1.96+-orange)
 ![MIPS](https://img.shields.io/badge/target-mipsel--24kc-blueviolet)
 ![Platform](https://img.shields.io/badge/platform-ImmortalWrt%2FOpenWrt-orange)
 
-[📖 中文版](README.zh.md)
+[📖 中文版](https://github.com/ArchivalEra/Policy-Gateway/blob/main/README.zh.md)
 
 ```
 Device          Router (policy-gateway)
@@ -67,7 +67,7 @@ scp target/mipsel-unknown-linux-musl/release/policy-gateway root@<router-ip>:/tm
 ssh root@<router-ip> "MANAGER_TOKEN=<token> /tmp/policy-gateway serve &"
 ```
 
-See [`docs/CROSS_COMPILE.md`](policy-gateway/docs/CROSS_COMPILE.md) for detailed instructions.
+See [`docs/CROSS_COMPILE.md`](https://github.com/ArchivalEra/Policy-Gateway/blob/main/policy-gateway/docs/CROSS_COMPILE.md) for detailed instructions.
 
 ## Architecture
 
@@ -119,13 +119,13 @@ See [`docs/CROSS_COMPILE.md`](policy-gateway/docs/CROSS_COMPILE.md) for detailed
 
 | English | 中文 |
 |---------|------|
-| [Architecture](PLAN.md) | [核心架构](PLAN.md) (中英混) |
-| [Building & Testing](policy-gateway/README.md) | [编译指南](policy-gateway/README.md) |
-| [User Guide](policy-gateway/docs/USER_GUIDE.md) | [用户手册](policy-gateway/docs/USER_GUIDE.md) |
-| [Cross-compilation Guide](policy-gateway/docs/CROSS_COMPILE.md) | [交叉编译](policy-gateway/docs/CROSS_COMPILE.md) |
-| [Maintenance](policy-gateway/docs/MAINTENANCE.md) | [维护规章](policy-gateway/docs/MAINTENANCE.md) |
-| [Module Guide](policy-gateway/docs/MODULE_GUIDE.md) | [模块指南](policy-gateway/docs/MODULE_GUIDE.md) |
-| [Network diagnostics](policy-gateway/docs/NETWORK.md) | [网络诊断](policy-gateway/docs/NETWORK.md) |
+| [Architecture](https://github.com/ArchivalEra/Policy-Gateway/blob/main/PLAN.md) | [核心架构](https://github.com/ArchivalEra/Policy-Gateway/blob/main/PLAN.md) (中英混) |
+| [Building & Testing](https://github.com/ArchivalEra/Policy-Gateway/blob/main/policy-gateway/README.md) | [编译指南](https://github.com/ArchivalEra/Policy-Gateway/blob/main/policy-gateway/README.md) |
+| [User Guide](https://github.com/ArchivalEra/Policy-Gateway/blob/main/policy-gateway/docs/USER_GUIDE.md) | [用户手册](https://github.com/ArchivalEra/Policy-Gateway/blob/main/policy-gateway/docs/USER_GUIDE.md) |
+| [Cross-compilation Guide](https://github.com/ArchivalEra/Policy-Gateway/blob/main/policy-gateway/docs/CROSS_COMPILE.md) | [交叉编译](https://github.com/ArchivalEra/Policy-Gateway/blob/main/policy-gateway/docs/CROSS_COMPILE.md) |
+| [Maintenance](https://github.com/ArchivalEra/Policy-Gateway/blob/main/policy-gateway/docs/MAINTENANCE.md) | [维护规章](https://github.com/ArchivalEra/Policy-Gateway/blob/main/policy-gateway/docs/MAINTENANCE.md) |
+| [Module Guide](https://github.com/ArchivalEra/Policy-Gateway/blob/main/policy-gateway/docs/MODULE_GUIDE.md) | [模块指南](https://github.com/ArchivalEra/Policy-Gateway/blob/main/policy-gateway/docs/MODULE_GUIDE.md) |
+| [Network diagnostics](https://github.com/ArchivalEra/Policy-Gateway/blob/main/policy-gateway/docs/NETWORK.md) | [网络诊断](https://github.com/ArchivalEra/Policy-Gateway/blob/main/policy-gateway/docs/NETWORK.md) |
 | MCU tutorial: `/api/help?topic=mcu` | MCU 教程: `/api/help?topic=mcu` |
 
 ## CLI
@@ -168,4 +168,4 @@ policy-gateway-vm rollback test   # Rollback
 
 ## License
 
-[AGPL-3.0](LICENSE) — Free to use, modify, and distribute. Contributions welcome.
+[AGPL-3.0](https://github.com/ArchivalEra/Policy-Gateway/blob/main/LICENSE) — Free to use, modify, and distribute. Contributions welcome.

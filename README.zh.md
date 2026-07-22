@@ -3,12 +3,12 @@
 **没证书不能上网。** 设备必须提交 CSR 或公钥，路由器用 Ed25519 签名，两阶段确认后放行。
 
 [![CI](https://github.com/ArchivalEra/Worker-Router-Gateway/actions/workflows/ci.yml/badge.svg)](https://github.com/ArchivalEra/Worker-Router-Gateway/actions/workflows/ci.yml)
-[![AGPL-3.0](https://img.shields.io/badge/license-AGPL--3.0-blue)](LICENSE)
+[![AGPL-3.0](https://img.shields.io/badge/license-AGPL--3.0-blue)](https://github.com/ArchivalEra/Policy-Gateway/blob/main/LICENSE)
 ![Rust](https://img.shields.io/badge/rust-1.96+-orange)
 ![MIPS](https://img.shields.io/badge/target-mipsel--24kc-blueviolet)
 ![Platform](https://img.shields.io/badge/platform-ImmortalWrt%2FOpenWrt-orange)
 
-[English](README.md)
+[English](https://github.com/ArchivalEra/Policy-Gateway/blob/main/README.md)
 
 ```
 设备              路由器 (policy-gateway)
@@ -65,7 +65,7 @@ scp target/mipsel-unknown-linux-musl/release/policy-gateway root@<路由器IP>:/
 ssh root@<路由器IP> "MANAGER_TOKEN=<token> /tmp/policy-gateway serve &"
 ```
 
-详细教程见 [`docs/CROSS_COMPILE.md`](policy-gateway/docs/CROSS_COMPILE.md)。
+详细教程见 [`docs/CROSS_COMPILE.md`](https://github.com/ArchivalEra/Policy-Gateway/blob/main/policy-gateway/docs/CROSS_COMPILE.md)。
 
 ## 架构
 
@@ -109,13 +109,13 @@ ssh root@<路由器IP> "MANAGER_TOKEN=<token> /tmp/policy-gateway serve &"
 
 | 文档 | 链接 |
 |------|------|
-| 核心架构 (中英混) | [`PLAN.md`](PLAN.md) |
-| 编译指南 | [`policy-gateway/README.md`](policy-gateway/README.md) |
-| 用户手册 | [`policy-gateway/docs/USER_GUIDE.md`](policy-gateway/docs/USER_GUIDE.md) |
-| 交叉编译 | [`policy-gateway/docs/CROSS_COMPILE.md`](policy-gateway/docs/CROSS_COMPILE.md) |
-| 维护规章 | [`policy-gateway/docs/MAINTENANCE.md`](policy-gateway/docs/MAINTENANCE.md) |
-| 模块指南 | [`policy-gateway/docs/MODULE_GUIDE.md`](policy-gateway/docs/MODULE_GUIDE.md) |
-| 网络诊断 | [`policy-gateway/docs/NETWORK.md`](policy-gateway/docs/NETWORK.md) |
+| 核心架构 (中英混) | [`PLAN.md`](https://github.com/ArchivalEra/Policy-Gateway/blob/main/PLAN.md) |
+| 编译指南 | [`policy-gateway/README.md`](https://github.com/ArchivalEra/Policy-Gateway/blob/main/policy-gateway/README.md) |
+| 用户手册 | [`policy-gateway/docs/USER_GUIDE.md`](https://github.com/ArchivalEra/Policy-Gateway/blob/main/policy-gateway/docs/USER_GUIDE.md) |
+| 交叉编译 | [`policy-gateway/docs/CROSS_COMPILE.md`](https://github.com/ArchivalEra/Policy-Gateway/blob/main/policy-gateway/docs/CROSS_COMPILE.md) |
+| 维护规章 | [`policy-gateway/docs/MAINTENANCE.md`](https://github.com/ArchivalEra/Policy-Gateway/blob/main/policy-gateway/docs/MAINTENANCE.md) |
+| 模块指南 | [`policy-gateway/docs/MODULE_GUIDE.md`](https://github.com/ArchivalEra/Policy-Gateway/blob/main/policy-gateway/docs/MODULE_GUIDE.md) |
+| 网络诊断 | [`policy-gateway/docs/NETWORK.md`](https://github.com/ArchivalEra/Policy-Gateway/blob/main/policy-gateway/docs/NETWORK.md) |
 | MCU 教程 | 启动后访问 `/api/help?topic=mcu` |
 
 ## CLI
@@ -158,4 +158,4 @@ policy-gateway-vm rollback test   回滚
 
 ## 许可证
 
-[AGPL-3.0](LICENSE)
+[AGPL-3.0](https://github.com/ArchivalEra/Policy-Gateway/blob/main/LICENSE)
