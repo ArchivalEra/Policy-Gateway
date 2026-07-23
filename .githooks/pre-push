@@ -1,10 +1,15 @@
 #!/bin/sh
-# pre-push — 精确到文件级别的推送前检查
+# pre-push — file-level consistency checks before push
 #
-# 需要持续更新的文件 (改了 A 必须确认 B 也更新):
-#   README.md ↔ README.zh.md  (根目录首页)
-#   policy-gateway/README.md → build.sh → docs/CROSS_COMPILE.md  (编译三件套)
-#   policy-gateway/Cargo.toml → vm/Cargo.toml  (版本号)
+# File groups (edit A → must also edit B):
+#   README.md ↔ README.zh.md
+#   PLAN.md → policy-gateway/README.md → build.sh → docs/CROSS_COMPILE.md
+#   Cargo.toml → vm/Cargo.toml
+#   cli/src/main.rs → cli/pg.js
+#   worker/index.ts → wrangler.toml
+#   permissions.rs → docs/USER_GUIDE.md
+#   portal.rs → docs/MODULES.md
+#   vm-mod/main.rs → docs/MODULE_GUIDE.md
 
 SENSITIVE="root-key.pem manager-token.txt seed.json .env id_ed25519 *.key *.p12"
 
@@ -12,7 +17,7 @@ check_group() {
     local trigger="$1" required="$2"
     if echo "$CHANGED" | grep -q "$trigger"; then
         if ! echo "$CHANGED" | grep -q "$required"; then
-            echo "⚠️  改了 $trigger 但没改 $required — 建议同步"
+            echo "⚠️  $trigger changed without $required — consider updating"
         fi
     fi
 }
@@ -20,7 +25,7 @@ check_group() {
 while read local_ref local_oid remote_ref remote_oid; do
     case "$remote_ref" in
         */main)
-            echo "⚠️  main 分支受保护。使用 phaseX 分支。"
+            echo "⚠️  main is protected. Use phaseX branch."
             [ -z "$SKIP_MAIN_CHECK" ] && exit 1
             ;;
     esac
@@ -28,46 +33,40 @@ done
 
 CHANGED=$(git diff --cached --name-only)
 
-# 敏感文件
+# Sensitive file check
 for p in $SENSITIVE; do
     if echo "$CHANGED" | grep -qi "$p"; then
-        echo "❌ 含敏感文件 '$p'，推送被拒绝"
+        echo "❌ Sensitive file '$p' in commit — rejected"
         exit 1
     fi
 done
 
-# 版本号一致性
+# Version consistency
 PG_VER=$(grep "^version" policy-gateway/Cargo.toml | head -1 | cut -d'"' -f2)
 VM_VER=$(grep "^version" policy-gateway/vm/Cargo.toml 2>/dev/null | head -1 | cut -d'"' -f2)
 VMOD_VER=$(grep "^version" policy-gateway/vm-mod/Cargo.toml 2>/dev/null | head -1 | cut -d'"' -f2)
 if [ "$PG_VER" != "$VM_VER" ] || [ "$PG_VER" != "$VMOD_VER" ]; then
-    echo "❌ 版本号不一致: core=$PG_VER vm=$VM_VER vm-mod=$VMOD_VER"
+    echo "❌ Version mismatch: core=$PG_VER vm=$VM_VER vm-mod=$VMOD_VER"
     exit 1
 fi
 
-# 自动编译检查 (有 src 变更时)
+# Auto cargo check on source changes
 if echo "$CHANGED" | grep -qE "policy-gateway/src/|*.rs|Cargo.toml|Cargo.lock"; then
-    echo "🔨  代码变更 — 运行 cargo check..."
+    echo "🔨  Source changed — running cargo check..."
     cd policy-gateway && cargo check 2>&1 | tail -3
-    if [ $? -ne 0 ]; then
-        echo "❌ 编译检查失败"
-        exit 1
-    fi
+    if [ $? -ne 0 ]; then echo "❌ cargo check failed"; exit 1; fi
     cd ..
 fi
 
-# 自动测试 (src 或 test 变更时)
+# Auto test on test changes
 if echo "$CHANGED" | grep -qE "src/|test/"; then
-    echo "🧪  测试变更 — 运行 cargo test..."
+    echo "🧪  Tests changed — running cargo test..."
     cd policy-gateway && cargo test 2>&1 | grep "test result"
-    if [ $? -ne 0 ]; then
-        echo "❌ 测试失败"
-        exit 1
-    fi
+    if [ $? -ne 0 ]; then echo "❌ cargo test failed"; exit 1; fi
     cd ..
 fi
 
-# 文件关联检查 (只检查真实存在的文件)
+# File association checks
 check_group "README.md" "README.zh.md"
 check_group "PLAN.md" "policy-gateway/README.md"
 check_group "policy-gateway/README.md" "policy-gateway/build.sh"
@@ -80,10 +79,10 @@ check_group "src/api/permissions.rs" "policy-gateway/docs/USER_GUIDE.md"
 check_group "src/modules/portal.rs" "policy-gateway/docs/MODULES.md"
 check_group "vm-mod/src/main.rs" "policy-gateway/docs/MODULE_GUIDE.md"
 
-# 安全敏感变更提示
+# Firewall rule change warning
 if echo "$CHANGED" | grep -qE "nft\.rs|nftables|firewall|pg_nat"; then
-    echo "⚠️  防火墙规则变更 — 请在路由器上验证"
+    echo "⚠️  Firewall rules changed — verify on router before deploying"
 fi
 
-echo "✅  pre-push 检查通过"
+echo "✅  pre-push checks passed"
 exit 0
