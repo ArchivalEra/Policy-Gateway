@@ -77,8 +77,7 @@ fn main() {
         _ => {
             eprintln!("pg: '{}' 不是 pg 指令。", args[1]);
             eprintln!("   核心指令: status, approve, reject, pending, cert sign, cert status");
-            eprintln!("   模块指令: 安装对应模块后通过 vm-mod list 查看");
-            eprintln!("   全部帮助: pg help");
+            eprintln!("   模块指令: 运行 'vm-mod list' 查看已安装模块的指令集");
         }
     }
 }
@@ -86,7 +85,6 @@ fn main() {
 fn print_help() {
     println!("pg — policy-gateway CLI (核心指令集, 永不变)");
     println!();
-    println!("核心指令:");
     println!("  pg status                     服务器健康检查");
     println!("  pg approve <request_id>       批准申请");
     println!("  pg reject <request_id>        拒绝申请");
@@ -94,13 +92,9 @@ fn print_help() {
     println!("  pg cert sign <csr|pubkey>     提交证书申请");
     println!("  pg cert status <sha256>       查询证书状态");
     println!();
-    println!("环境变量:");
-    println!("  PG_SERVER     服务器地址 (默认: http://localhost:8443)");
-    println!("  PG_TOKEN      管理 Token");
-    println!("  PG_HOSTNAME   主机名 (cert sign 时使用)");
+    println!("环境变量: PG_SERVER PG_TOKEN PG_HOSTNAME");
     println!();
-    println!("模块指令: 通过 vm-mod install 安装对应模块后可用");
-    println!("  运行 'vm-mod list' 查看已注册的模块指令");
+    println!("模块指令由 vm-mod 管理: vm-mod list");
 }
 
 fn cmd_status() {

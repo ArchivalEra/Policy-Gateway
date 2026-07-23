@@ -24,7 +24,8 @@ pub fn portal_router(state: std::sync::Arc<CoreState>) -> Router {
         .route("/api/help", get(crate::api::help::handle))
         .route("/permissions", get(crate::api::permissions::handle_page))
         .route("/healthz", get(healthz))
-        .route("/api/events", get(crate::api::events::handle));
+        .route("/api/events", get(crate::api::events::handle))
+        .route("/my-pending", get(my_pending_page));
 
     #[cfg(feature = "frontend")]
     if state.serve_html {
@@ -77,7 +78,28 @@ a.secondary{background:#6c757d;font-size:14px}
 <a href="/signup">📜 申请证书</a>
 <a href="/manager">🔑 管理面板</a>
 <a href="/permissions">📋 权限表</a>
+<a href="/my-pending">📬 我的待批</a>
 <a href="/api/help" class="secondary">📖 接入教程</a>
 </div>
 </body></html>"#)
+}
+
+/// GET /my-pending — 我的待批页面（未安装 p2p 模块时显示提示）
+pub async fn my_pending_page() -> axum::response::Html<&'static str> {
+    axum::response::Html(r#"<!DOCTYPE html>
+<html lang="zh"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>我的待批</title><style>
+*{box-sizing:border-box}
+body{font-family:-apple-system,BlinkMacSystemFont,sans-serif;max-width:600px;margin:0 auto;padding:16px;background:#f5f5f7;color:#1d1d1f;text-align:center}
+.card{background:#fff;border-radius:12px;padding:20px;margin:12px 0;box-shadow:0 1px 3px#0000001a}
+h1{font-size:22px;font-weight:600}
+code{background:#e8e8ed;padding:2px 6px;border-radius:4px;font-size:13px}
+.btn{display:inline-block;padding:8px 16px;margin:4px;background:#007aff;color:#fff;border-radius:6px;text-decoration:none;font-size:14px}
+</style></head>
+<body><div class="card">
+<h1>📬 我的待批</h1>
+<p style="color:#86868b">此页面需要安装 p2p 模块</p>
+<p>安装命令: <code>vm-mod install p2p</code></p>
+<p>安装后，分配到您的审批请求将在此显示。</p>
+<p style="margin-top:20px"><a class="btn" href="/">← 首页</a></p>
+</div></body></html>"#)
 }
