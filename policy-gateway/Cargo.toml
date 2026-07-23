@@ -42,7 +42,7 @@ futures = "0.3"
 
 [workspace]
 resolver = "2"
-members = ["vm", "cli"]
+members = ["vm", "cli", "vm-mod"]
 
 [profile.release]
 lto = true
