@@ -89,6 +89,10 @@ pub struct Config {
     pub dns_hosts: Vec<String>,  // 格式: "域名=IP", 如 "ca.网站=192.168.1.1"
     /// 是否允许直接访问网关 IP (不经域名)
     pub allow_direct_ip: bool,
+    /// 启用 TLS 传输加密 (需 tls feature + tls_cert/tls_key 配置)
+    pub tls_enabled: bool,
+    /// 启用崩溃自愈 (需 auto-heal feature, 退出时保留 nftables 规则)
+    pub auto_heal_enabled: bool,
     /// TLS 证书路径 (可选)
     pub tls_cert: Option<String>,
     /// TLS 密钥路径 (可选)
@@ -120,6 +124,8 @@ impl Default for Config {
             monitor_interfaces: vec![],
             dns_hosts: vec![],
             allow_direct_ip: true,
+            tls_enabled: false,
+            auto_heal_enabled: false,
         }
     }
 }
@@ -172,6 +178,8 @@ impl Config {
         if let Ok(v) = std::env::var("PG_MONITOR_INTERFACES") {
             self.monitor_interfaces = v.split(',').map(|s| s.trim().to_string()).filter(|s| !s.is_empty()).collect();
         }
+        if let Ok(v) = std::env::var("PG_TLS_ENABLED") { self.tls_enabled = v == "true" || v == "1"; }
+        if let Ok(v) = std::env::var("PG_AUTO_HEAL") { self.auto_heal_enabled = v == "true" || v == "1"; }
         self
     }
 

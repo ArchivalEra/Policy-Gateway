@@ -9,6 +9,8 @@ frontend = []
 minimize = []
 modelize = []
 lang-en = []    # 编译时英文（默认中文）
+tls = []        # TLS 传输加密 (可选模块)
+auto-heal = []  # 崩溃自愈 (可选模块)
 
 compute = []
 storage = []

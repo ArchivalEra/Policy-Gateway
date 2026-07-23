@@ -76,8 +76,10 @@ cargo build --release --features lang-en
 
 ## 语言
 
-| 编译方式 | 语言 |
-|---------|------|
-| `cargo build` (默认) | 简体中文 |
-| `cargo build --features lang-en` | English |
-| CLI/API 运行时 | `PG_LANGUAGE=zh` / `en` 环境变量 |
+| 编译方式 | 语言 | 额外模块 |
+|---------|------|---------|
+| `cargo build` (默认) | 简体中文 | 最小程序 |
+| `cargo build --features lang-en` | English | 最小程序 |
+| `cargo build --features tls` | 简体中文 | + TLS 传输加密 |
+| `cargo build --features auto-heal` | 简体中文 | + 崩溃自愈 |
+| `cargo build --features "tls auto-heal lang-en"` | English | + TLS + 自愈 |
