@@ -1,4 +1,4 @@
-# policy-gateway — 路由器端
+# policy-gateway — 路由器端 (Phase 3.7-5)
 
 **单二进制**: 认证门户 + CA 引擎 + 权限表 + 事件驱动 SSE。
 
