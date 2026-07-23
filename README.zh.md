@@ -132,7 +132,7 @@ policy-gateway-vm rollback test   回滚
 
 ## 项目状态
 
-**活跃开发 — Phase 3.3** (v0.3.3)
+**活跃开发 — Phase 3.6** (v0.3.6)
 
 | Phase | 亮点 |
 |-------|------|
