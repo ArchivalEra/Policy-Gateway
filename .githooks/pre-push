@@ -69,6 +69,7 @@ fi
 
 # 文件关联检查 (只检查真实存在的文件)
 check_group "README.md" "README.zh.md"
+check_group "PLAN.md" "policy-gateway/README.md"
 check_group "policy-gateway/README.md" "policy-gateway/build.sh"
 check_group "policy-gateway/build.sh" "policy-gateway/docs/CROSS_COMPILE.md"
 check_group "policy-gateway/docs/CROSS_COMPILE.md" "policy-gateway/build.sh"

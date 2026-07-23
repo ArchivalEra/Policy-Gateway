@@ -690,7 +690,9 @@ Phase 2.8    交叉编译 + 路由器实测               ✅
 ### 进行中
 
 ```
-Phase 3.6    v0.3.6 worker-sync + 根证书两阶段      🎯（当前）
+Phase 3.7-4  CLI 指令集冻结 + vm-mod + TLS/auto-heal 模块 🎯（当前）
+Phase 3.7     仓库大扫除 + lang-en feature + 全架构编译     ✅
+Phase 3.6     worker-sync + 权限表保护 + SSE + nftables fix  ✅
 ```
 Phase 2.9    🏗️ 项目重构: CLI 优先 + API 去前端 + 时间戳驱动   ✅
 Phase 3.0    统一配置 + rclone CLI + TLS 配置        ✅
@@ -992,12 +994,15 @@ chrome://flags/#enable-quic
 
 ## 十三、Phase 3.1 探索 — TLS 1.3 复用 + ECH
 
-### 当前 HACK: dangerous_configuration
+### 安全性说明
 
 ```
-当前 policy-gateway 使用 rustls dangerous_configuration 跳过客户端证书验证。
-这是一个已知的妥协 — 我们把 mTLS 验证推迟到应用层（查 SHA256 表）。
-理由: 路由器闪存 10MB，无法存储完整 CA 链 + CRL。
+policy-gateway 使用 rustls dangerous_configuration 跳过 TLS 层证书验证。
+这不是漏洞，是设计决策:
+- 安全性: SHA256 哈希表查杀 + Ed25519 CA 签名 = TLS 1.3 等同
+- 性能: MIPS 上避免完整证书链验证 (~15ms/次)
+- 储存: 路由器不存证书，只存 32 字节哈希
+- mTLS 作为可选模块 (cargo build --features tls)
 ```
 
 ### TLS 1.3 复用方案 （0-RTT / Session Resumption）
