@@ -24,8 +24,6 @@ pub struct StatusResponse {
     pub bitmap: Option<String>,
     pub request_id: Option<String>,
     pub reason: Option<String>,
-    /// 建议轮询间隔（秒），MCU 可用此值决定多久查一次
-    pub poll_interval: Option<u64>,
 }
 
 pub async fn handle(
@@ -37,35 +35,26 @@ pub async fn handle(
     let entry = if let Some(id) = &q.id {
         table.get_by_request_id(id)
     } else if let Some(hex_str) = &q.sha256 {
-        let sha256 = match hex_decode(hex_str) { Ok(h) => h, Err(_) => return Json(StatusResponse { status: "invalid_sha256".into(), hostname: None, bitmap: None, request_id: None, reason: None, poll_interval: None }) };
+        let sha256 = match hex_decode(hex_str) { Ok(h) => h, Err(_) => return Json(StatusResponse { status: "invalid_sha256".into(), hostname: None, bitmap: None, request_id: None, reason: None }) };
         table.get(&sha256)
     } else {
         None
     };
 
     match entry {
-        Some(e) => {
-            let poll = match e.status {
-                crate::auth::EntryStatus::PendingConfirm => Some(15u64),
-                crate::auth::EntryStatus::Pending => Some(30u64),
-                _ => None,
-            };
-            Json(StatusResponse {
-                status: e.status.to_string(),
-                hostname: Some(e.hostname.clone()),
-                bitmap: Some(bitmap_to_hex(e.bitmap & crate::auth::valid_bits_mask())),
-                request_id: None,
-                reason: None,
-                poll_interval: poll,
-            })
-        }
+        Some(e) => Json(StatusResponse {
+            status: e.status.to_string(),
+            hostname: Some(e.hostname.clone()),
+            bitmap: Some(bitmap_to_hex(e.bitmap & crate::auth::valid_bits_mask())),
+            request_id: None, // 不暴露内部 ID
+            reason: None,
+        }),
         None => Json(StatusResponse {
             status: "not_found".into(),
             hostname: None,
             bitmap: None,
             request_id: None,
             reason: None,
-            poll_interval: None,
         }),
     }
 }

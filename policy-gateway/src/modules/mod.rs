@@ -29,6 +29,8 @@ pub struct CoreState {
     pub ca_cert_pem: String,
     pub event_log: Arc<RwLock<crate::event_log::EventLog>>,
     pub serve_html: bool,
+    /// 事件广播通道 — SSE 用, MCU 通过此通道实时接收状态变更
+    pub event_tx: tokio::sync::broadcast::Sender<String>,
 }
 
 /// 模块声明：一个模块 = 名 + 版本 + 需要的权限位

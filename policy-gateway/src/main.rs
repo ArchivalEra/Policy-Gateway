@@ -103,6 +103,7 @@ async fn start_server(serve_html: bool) {
         ca_cert_pem: ca_cert,
         event_log: Arc::new(RwLock::new(crate::event_log::EventLog::new())),
         serve_html,
+        event_tx: tokio::sync::broadcast::channel::<String>(256).0,
     });
 
     // 初始化 redb 持久化

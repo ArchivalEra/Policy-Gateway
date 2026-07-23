@@ -23,7 +23,8 @@ pub fn portal_router(state: std::sync::Arc<CoreState>) -> Router {
         .route("/api/manager/pending", get(crate::api::manager::handle_pending_json))
         .route("/api/help", get(crate::api::help::handle))
         .route("/permissions", get(crate::api::permissions::handle_page))
-        .route("/healthz", get(healthz));
+        .route("/healthz", get(healthz))
+        .route("/api/events", get(crate::api::events::handle));
 
     #[cfg(feature = "frontend")]
     if state.serve_html {

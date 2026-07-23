@@ -185,6 +185,13 @@ pub async fn handle_approve(
             match table.approve(&req.request_id, filtered_bitmap) {
                 Some(entry) => {
                     log::info!("✅ 批准: {} ({})", req.request_id, entry.hostname);
+                    // SSE 事件推送
+                    let _ = state.event_tx.send(serde_json::json!({
+                        "type": "approved",
+                        "sha256": hex::encode(entry.sha256),
+                        "hostname": entry.hostname,
+                        "bitmap": req.bitmap.unwrap_or(1),
+                    }).to_string());
                     // 记录事件
                     state.event_log.write().await.push(entry.sha256,
                         crate::event_log::EventKind::Approved { bitmap: filtered_bitmap },

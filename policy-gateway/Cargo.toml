@@ -34,6 +34,8 @@ redb = "2"
 toml = "0.8"
 tokio-rustls = "0.26"
 hyper = { version = "1", features = ["server", "http1"] }
+tokio-stream = { version = "0.1", features = ["sync"] }
+futures = "0.3"
 
 [workspace]
 resolver = "2"
