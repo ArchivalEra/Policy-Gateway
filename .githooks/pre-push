@@ -1,46 +1,68 @@
 #!/bin/sh
-# pre-push — 保护 main 分支 + 防敏感文件泄漏 + 推送前检查清单
-# 
-# 在推送前自动检查以下项目。如果失败则拒绝推送。
+# pre-push — 精确到文件级别的推送前检查
+# 检查推送的变更是否漏掉了关联文件
 
-# ===== 配置 =====
-SENSITIVE_PATTERNS="root-key.pem manager-token.txt seed.json .env id_ed25519 *.key *.p12"
+# ===== 敏感文件 =====
+SENSITIVE="root-key.pem manager-token.txt seed.json .env id_ed25519 *.key *.p12"
 
-# ===== 检查 1: main 分支保护 =====
-echo "📋 === pre-push 检查清单 ==="
+# ===== 关联文件组 (改了 A 也必须改 B) =====
+# 格式: "触发文件: 必须一起改的文件"
+check_group() {
+    local trigger="$1" required="$2"
+    if echo "$CHANGED" | grep -q "$trigger"; then
+        if ! echo "$CHANGED" | grep -q "$required"; then
+            echo "⚠️  改了 $trigger 但没改 $required"
+            echo "   建议同步更新"
+        fi
+    fi
+}
 
+# 读取推送目标
 while read local_ref local_oid remote_ref remote_oid; do
     case "$remote_ref" in
         */main)
             echo "⚠️  main 分支受保护。应使用 phaseX 分支。"
-            echo "  如需推 main: SKIP_MAIN_CHECK=1 git push"
             [ -z "$SKIP_MAIN_CHECK" ] && exit 1
             ;;
     esac
 done
 
-# ===== 检查 2: 敏感文件 =====
-for p in $SENSITIVE_PATTERNS; do
-    if git diff --cached --name-only | grep -qi "$p"; then
+# 获取本次暂存的变更文件列表
+CHANGED=$(git diff --cached --name-only)
+
+# ===== 敏感文件检查 =====
+for p in $SENSITIVE; do
+    if echo "$CHANGED" | grep -qi "$p"; then
         echo "❌ 含敏感文件 '$p'，推送被拒绝"
         exit 1
     fi
 done
 
-# ===== 检查 3: 版本号一致性 =====
+# ===== 版本号一致性 =====
 PG_VER=$(grep "^version" policy-gateway/Cargo.toml | head -1 | cut -d'"' -f2)
 VM_VER=$(grep "^version" policy-gateway/vm/Cargo.toml 2>/dev/null | head -1 | cut -d'"' -f2)
 if [ "$PG_VER" != "$VM_VER" ]; then
     echo "⚠️  版本号不一致: policy-gateway=$PG_VER vm=$VM_VER"
-    echo "  推送将继续, 但建议修复"
+fi
+
+# ===== 文件关联检查 =====
+check_group "README.md" "README.zh.md"
+check_group "README.zh.md" "README.md"
+check_group "policy-gateway/README.md" "policy-gateway/build.sh"
+check_group "policy-gateway/build.sh" "policy-gateway/docs/CROSS_COMPILE.md"
+check_group "docs/CROSS_COMPILE.md" "policy-gateway/build.sh"
+check_group "Cargo.toml" "policy-gateway/Cargo.toml"
+check_group "policy-gateway/Cargo.toml" "policy-gateway/vm/Cargo.toml"
+
+# ===== 语言 feature 检查 =====
+if echo "$CHANGED" | grep -q "lang.rs\|Cargo.toml"; then
+    echo "ℹ️  语言文件变更，确认测试: cargo test --features lang-en"
+fi
+
+# ===== 安全检查 =====
+if echo "$CHANGED" | grep -qE "nft\.rs|nftables|firewall"; then
+    echo "⚠️  nftables 规则变更，请在路由器上验证"
 fi
 
 echo "✅  pre-push 检查通过"
-echo ""
-echo "=== 推送后请确认 ==="
-echo "  1. GitHub Actions CI 是否通过"
-echo "  2. 根 README.md 和 README.zh.md 版本号正确"
-echo "  3. policy-gateway/README.md 是否同步更新"
-echo "  4. docs/CROSS_COMPILE.md + build.sh 是否同步 (policy-gateway/README.md → build.sh → docs/CROSS_COMPILE.md)"
-echo "  5. CHANGELOG / 发布说明 (如有)"
 exit 0
