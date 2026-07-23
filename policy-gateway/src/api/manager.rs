@@ -4,7 +4,7 @@
 //! POST /api/manager/approve → 同意/拒绝申请 (JSON)
 //!
 //! 安全: Phase 0 使用环境变量 MANAGER_TOKEN 做简单鉴权
-//!       Phase 1 改为 mTLS 客户端证书认证
+//!       长期: 应用层 SHA256 验证代替 mTLS 客户端证书认证
 
 use axum::extract::State;
 use axum::http::StatusCode;
@@ -175,7 +175,7 @@ pub async fn handle_approve(
         "approve" => {
             let bitmap = req.bitmap.unwrap_or(1 << BIT_CONNECTOR);
             // 只允许授予当前管理员有权限的 bit
-            let is_root = false; // TODO Phase 1: 根据 mTLS 证书判断
+            let is_root = false; // TODO: 根管理员识别
             let allowed = crate::auth::grantable_permissions(is_root)
                 .iter().fold(0u64, |acc, (bit, _)| acc | (1u64 << bit));
             let filtered_bitmap = bitmap & allowed;

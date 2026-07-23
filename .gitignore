@@ -67,3 +67,4 @@ policy-gateway/docs/frontend-module/
 
 # === Reasonix state ===
 .reasonix/
+.toolchain

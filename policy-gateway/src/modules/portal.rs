@@ -1,7 +1,7 @@
 //! 门户模块 — 核心功能：认证 + 审批 + 上网控制
 //!
 //! 这是系统唯一必需的模块。没有它，设备连 signup 都看不到。
-//! Phase 2.9: 默认仅 JSON API。HTML 页面可通过 "frontend" feature 启用。
+//! Phase 3.7: 默认仅 JSON API。HTML 页面可通过 "frontend" feature 启用。
 //! 它提供:
 //!   - /api/signup      证书申请 (JSON)
 //!   - /api/signup/status  状态查询 (JSON)
