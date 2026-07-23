@@ -276,12 +276,9 @@ async fn start_server(serve_html: bool) {
         Err(e) => log::warn!("⚠️  nftables 部署失败: {}（如非 OpenWrt 环境可忽略）", e),
     }
 
-    // 注册退出清理
-    let orig_hook = std::panic::take_hook();
-    std::panic::set_hook(Box::new(move |info| {
-        let _ = crate::nft::cleanup();
-        orig_hook(info);
-    }));
+    // 注册退出清理 (SIGTERM/SIGINT 时自动清理 nftables)
+    // 注意: 不要注册 panic hook 清理，因为 bind 失败等非致命错误也会触发 panic，
+    //       导致 nftables 规则被错误删除。
 
     let addr = "0.0.0.0:8443";
     log::info!("🌐 监听 {addr} — 设备可通过此端口访问 /signup");
@@ -306,16 +303,18 @@ async fn start_server(serve_html: bool) {
         log::info!("🔒 TLS 模式 — 仅 HTTPS");
         log::warn!("⚠️   TLS 监听器需要 hyper-util 编译支持，当前版本仅 HTTP");
         log::warn!("   运行 policy-gateway init 生成自签名证书后配置 tls_cert/tls_key");
-        // TODO Phase 3.3: 用 hyper-util + tokio-rustls 实现完整 TLS
-        // 参看 docs/TLS.md 了解当前限制
-        let listener = tokio::net::TcpListener::bind(addr).await.unwrap();
-        axum::serve(listener, app).await.unwrap();
+        match tokio::net::TcpListener::bind(addr).await {
+            Ok(listener) => { let _ = axum::serve(listener, app).await; }
+            Err(e) => log::error!("❌ 监听 {} 失败: {}（可能端口被占用）", addr, e),
+        }
     } else {
         if has_tls && config.tls_profile.allow_http {
             log::info!("🔒 TLS 证书已加载，同时监听 HTTP + HTTPS (TLS 待完整实现)");
         }
-        let listener = tokio::net::TcpListener::bind(addr).await.unwrap();
-        axum::serve(listener, app).await.unwrap();
+        match tokio::net::TcpListener::bind(addr).await {
+            Ok(listener) => { let _ = axum::serve(listener, app).await; }
+            Err(e) => log::error!("❌ 监听 {} 失败: {}（可能端口被占用）", addr, e),
+        }
     }
 }
 

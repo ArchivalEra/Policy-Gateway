@@ -13,11 +13,11 @@ setup() {
   $NFT add table inet pg_pre 2>/dev/null || true
   $NFT add set inet pg_pre authorized_ips { type ipv4_addr\; flags dynamic\; } 2>/dev/null || true
   $NFT add set inet pg_pre authorized_ips6 { type ipv6_addr\; flags dynamic\; } 2>/dev/null || true
-  $NFT add chain inet pg_pre forward { type filter hook forward priority -2\; } 2>/dev/null || true
+  $NFT add chain inet pg_pre forward { type filter hook forward priority -2\; policy drop\; } 2>/dev/null || true
   $NFT add rule inet pg_pre forward ip saddr @authorized_ips accept 2>/dev/null || true
   $NFT add rule inet pg_pre forward ip6 saddr @authorized_ips6 accept 2>/dev/null || true
   $NFT add rule inet pg_pre forward udp dport 443 drop 2>/dev/null || true
-  $NFT add rule inet pg_pre forward accept 2>/dev/null || true
+  # 无 catch-all accept — 未授权设备默认 drop
 
   # ===== ip pg_nat (NAT, IPv4 only — redirect) =====
   $NFT add table ip pg_nat 2>/dev/null || true

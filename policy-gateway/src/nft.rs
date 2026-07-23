@@ -37,16 +37,19 @@ pub fn deploy() -> Result<(), String> {
 
     // ===== inet pg_pre (filter) =====
     nft(&["add", "table", "inet", "pg_pre"])?;
+    // 清空旧规则再部署（避免重复）
+    let _ = nft(&["flush", "chain", "inet", "pg_pre", "forward"]);
     nft(&["add", "set", "inet", "pg_pre", "authorized_ips", "{ type ipv4_addr; flags dynamic; }"])?;
     nft(&["add", "set", "inet", "pg_pre", "authorized_ips6", "{ type ipv6_addr; flags dynamic; }"])?;
-    nft(&["add", "chain", "inet", "pg_pre", "forward", "{ type filter hook forward priority -2; }"])?;
+    nft(&["add", "chain", "inet", "pg_pre", "forward", "{ type filter hook forward priority -2; policy drop; }"])?;
     nft(&["add", "rule", "inet", "pg_pre", "forward", "ip saddr @authorized_ips accept"])?;
     nft(&["add", "rule", "inet", "pg_pre", "forward", "ip6 saddr @authorized_ips6 accept"])?;
     nft(&["add", "rule", "inet", "pg_pre", "forward", "udp dport 443 drop"])?;
-    nft(&["add", "rule", "inet", "pg_pre", "forward", "accept"])?;
+    // 无 catch-all accept — 未授权设备默认 drop
 
     // ===== ip pg_nat (NAT) =====
     nft(&["add", "table", "ip", "pg_nat"])?;
+    let _ = nft(&["flush", "chain", "ip", "pg_nat", "prerouting"]);
     nft(&["add", "set", "ip", "pg_nat", "authorized_ips", "{ type ipv4_addr; flags dynamic; }"])?;
     nft(&["add", "chain", "ip", "pg_nat", "prerouting", "{ type nat hook prerouting priority -150; }"])?;
     nft(&["add", "rule", "ip", "pg_nat", "prerouting",
