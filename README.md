@@ -157,7 +157,7 @@ policy-gateway-vm rollback test   # Rollback
 | 3.4 | storage-more module, bit claim, core freeze |
 | 3.5 | Token hashing, VM hot-update, maintenance mode |
 | 3.6 | worker-sync, perms auth, /api/help 4-guide, nftables security fix |
-| **3.7** 🎯 | **仓库大扫除, lang-en feature, HTML 美化, SSE 事件驱动** |
+| **3.7** 🎯 | **repo cleanup, lang-en feature, HTML redesign, SSE events** |
 
 - ✅ Core loop: signup → approve → active
 - ✅ Ed25519 CA with two-phase commit
