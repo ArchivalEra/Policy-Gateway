@@ -142,11 +142,11 @@ policy-gateway-vm rollback test   回滚
 | 2.9 | API 优先重构, CLI 骨架 |
 | 3.0 | 统一配置, rclone 风格 CLI |
 | 3.1 | 中英双语, QUIC 模块提示 |
-| 3.2 | TLS 框架, nftables 自动部署, procd, vm-worker |
-| **3.3** 🎯 | **v0.3.3 路由器部署, store 防 panic, 存储抽象** |
+| 3.2 | TLS 框架, nftables 自动部署, procd |
+| 3.3 | v0.3.3 路由器部署, storage 抽象 |
 | 3.4 | storage-more 模块, bit claim, 核心冻结 |
 | 3.5 | Token 哈希化, VM 热更新, 维护模式 |
-| **3.6** 🎯 | **worker-sync, 根证书两阶段, Worker /api/sync** |
+| **3.6** 🎯 | **worker-sync, 权限表保护, /api/help 4 主题, nftables 安全修复** |
 
 - ✅ 核心闭环: signup → approve → active
 - ✅ Ed25519 CA + 两阶段确认

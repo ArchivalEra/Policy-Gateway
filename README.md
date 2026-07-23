@@ -142,7 +142,7 @@ policy-gateway-vm rollback test   # Rollback
 
 ## Project Status
 
-**Active development — Phase 3.3** (v0.3.3)
+**Active development — Phase 3.6** (v0.3.6)
 
 | Phase | Highlights |
 |-------|-----------|
@@ -152,7 +152,11 @@ policy-gateway-vm rollback test   # Rollback
 | 2.9 | API-first restructure, CLI skeleton |
 | 3.0 | Unified config, rclone-style CLI |
 | 3.1 | i18n zh/en, QUIC module notice |
-| 3.2 | TLS framework, nftables autodeploy, procd, vm-worker |
+| 3.2 | TLS framework, nftables autodeploy, procd |
+| 3.3 | Router-deployed v0.3.3, storage abstraction |
+| 3.4 | storage-more module, bit claim, core freeze |
+| 3.5 | Token hashing, VM hot-update, maintenance mode |
+| **3.6** 🎯 | **worker-sync, perms auth, /api/help 4-guide, nftables security fix** |
 | **3.3** 🎯 | **Router-deployed v0.3.3, store panic fix, storage abstraction** |
 | 3.4 | storage-more module, bit claim, core freeze |
 | 3.5 | Token hashing, VM hot-update, maintenance mode |
