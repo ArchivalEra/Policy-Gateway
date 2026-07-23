@@ -9,8 +9,14 @@
 //!   pg cert sign <csr|pubkey>    申请
 //!   pg cert status <sha256>      状态
 
-use std::io::{Read, Write};
-use std::net::TcpStream;
+fn lang() -> &'static str {
+    let l = std::env::var("PG_LANGUAGE").unwrap_or_default();
+    if l == "en" { "en" } else { "zh" }
+}
+
+fn t_zh_en(zh: &'static str, en: &'static str) -> &'static str {
+    if lang() == "en" { en } else { zh }
+}
 
 fn get_server() -> (String, u16) {
     let s = std::env::var("PG_SERVER").unwrap_or_else(|_| "http://localhost:8443".to_string());

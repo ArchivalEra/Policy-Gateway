@@ -76,6 +76,9 @@ check_group "policy-gateway/docs/CROSS_COMPILE.md" "policy-gateway/build.sh"
 check_group "policy-gateway/Cargo.toml" "policy-gateway/vm/Cargo.toml"
 check_group "cli/src/main.rs" "cli/pg.js"
 check_group "worker/vm-worker/index.ts" "worker/vm-worker/wrangler.toml"
+check_group "src/api/permissions.rs" "policy-gateway/docs/USER_GUIDE.md"
+check_group "src/modules/portal.rs" "policy-gateway/docs/MODULES.md"
+check_group "vm-mod/src/main.rs" "policy-gateway/docs/MODULE_GUIDE.md"
 
 # 安全敏感变更提示
 if echo "$CHANGED" | grep -qE "nft\.rs|nftables|firewall|pg_nat"; then
