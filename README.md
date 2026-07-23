@@ -142,7 +142,7 @@ policy-gateway-vm rollback test   # Rollback
 
 ## Project Status
 
-**Active development — Phase 3.6** (v0.3.6)
+**Active development — Phase 3.7** (v0.3.6)
 
 | Phase | Highlights |
 |-------|-----------|
@@ -156,7 +156,8 @@ policy-gateway-vm rollback test   # Rollback
 | 3.3 | Router-deployed v0.3.3, storage abstraction |
 | 3.4 | storage-more module, bit claim, core freeze |
 | 3.5 | Token hashing, VM hot-update, maintenance mode |
-| **3.6** 🎯 | **worker-sync, perms auth, /api/help 4-guide, nftables security fix** |
+| 3.6 | worker-sync, perms auth, /api/help 4-guide, nftables security fix |
+| **3.7** 🎯 | **仓库大扫除, lang-en feature, HTML 美化, SSE 事件驱动** |
 
 - ✅ Core loop: signup → approve → active
 - ✅ Ed25519 CA with two-phase commit

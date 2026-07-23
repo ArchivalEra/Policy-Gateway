@@ -132,7 +132,7 @@ policy-gateway-vm rollback test   回滚
 
 ## 项目状态
 
-**活跃开发 — Phase 3.6** (v0.3.6)
+**活跃开发 — Phase 3.7** (v0.3.6)
 
 | Phase | 亮点 |
 |-------|------|
@@ -146,7 +146,8 @@ policy-gateway-vm rollback test   回滚
 | 3.3 | v0.3.3 路由器部署, storage 抽象 |
 | 3.4 | storage-more 模块, bit claim, 核心冻结 |
 | 3.5 | Token 哈希化, VM 热更新, 维护模式 |
-| **3.6** 🎯 | **worker-sync, 权限表保护, /api/help 4 主题, nftables 安全修复** |
+| 3.6 | worker-sync, 权限表保护, /api/help 4 主题, nftables 安全修复 |
+| **3.7** 🎯 | **仓库大扫除, lang-en 编译选项, HTML 美化, SSE 事件驱动** |
 
 - ✅ 核心闭环: signup → approve → active
 - ✅ Ed25519 CA + 两阶段确认
