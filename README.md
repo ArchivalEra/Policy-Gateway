@@ -4,7 +4,7 @@
 
 No certificate? No internet. Devices must submit a CSR (or public key), get it signed by the router's Ed25519 CA, and confirm in two phases before the gateway allows traffic.
 
-[![CI](https://github.com/ArchivalEra/Worker-Router-Gateway/actions/workflows/ci.yml/badge.svg)](https://github.com/ArchivalEra/Worker-Router-Gateway/actions/workflows/ci.yml)
+[![CI](https://github.com/ArchivalEra/Policy-Gateway/actions/workflows/ci.yml/badge.svg)](https://github.com/ArchivalEra/Policy-Gateway/actions/workflows/ci.yml)
 [![AGPL-3.0](https://img.shields.io/badge/license-AGPL--3.0-blue)](https://github.com/ArchivalEra/Policy-Gateway/blob/main/LICENSE)
 ![Rust](https://img.shields.io/badge/rust-1.96+-orange)
 ![MIPS](https://img.shields.io/badge/target-mipsel--24kc-blueviolet)

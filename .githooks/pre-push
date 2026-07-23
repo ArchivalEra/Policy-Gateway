@@ -1,26 +1,45 @@
 #!/bin/sh
-# pre-push — 保护 main 分支 + 防敏感文件泄漏
-# 检查的是推送目标分支，不 care 当前 checkout 的是哪个分支
+# pre-push — 保护 main 分支 + 防敏感文件泄漏 + 推送前检查清单
+# 
+# 在推送前自动检查以下项目。如果失败则拒绝推送。
 
-# 读取标准输入获取推送目标 (格式: "local_ref local_oid remote_ref remote_oid")
+# ===== 配置 =====
+SENSITIVE_PATTERNS="root-key.pem manager-token.txt seed.json .env id_ed25519 *.key *.p12"
+
+# ===== 检查 1: main 分支保护 =====
+echo "📋 === pre-push 检查清单 ==="
+
 while read local_ref local_oid remote_ref remote_oid; do
     case "$remote_ref" in
         */main)
-            echo "⚠️  main 分支受保护。Phase 1+ 应推到 phase1 分支。"
-            echo "  推荐: git push origin HEAD:phase1"
+            echo "⚠️  main 分支受保护。应使用 phaseX 分支。"
             echo "  如需推 main: SKIP_MAIN_CHECK=1 git push"
-            if [ -z "$SKIP_MAIN_CHECK" ]; then
-                exit 1
-            fi
+            [ -z "$SKIP_MAIN_CHECK" ] && exit 1
             ;;
     esac
 done
 
-# 防敏感文件
-for p in "root-key.pem" "manager-token.txt" "seed.json" ".env" "id_ed25519"; do
-    if git diff --cached --name-only | grep -q "$p"; then
+# ===== 检查 2: 敏感文件 =====
+for p in $SENSITIVE_PATTERNS; do
+    if git diff --cached --name-only | grep -qi "$p"; then
         echo "❌ 含敏感文件 '$p'，推送被拒绝"
         exit 1
     fi
 done
+
+# ===== 检查 3: 版本号一致性 =====
+PG_VER=$(grep "^version" policy-gateway/Cargo.toml | head -1 | cut -d'"' -f2)
+VM_VER=$(grep "^version" policy-gateway/vm/Cargo.toml 2>/dev/null | head -1 | cut -d'"' -f2)
+if [ "$PG_VER" != "$VM_VER" ]; then
+    echo "⚠️  版本号不一致: policy-gateway=$PG_VER vm=$VM_VER"
+    echo "  推送将继续, 但建议修复"
+fi
+
+echo "✅  pre-push 检查通过"
+echo ""
+echo "=== 推送后请确认 ==="
+echo "  1. GitHub Actions CI 是否通过"
+echo "  2. 根 README.md 和 README.zh.md 版本号正确"
+echo "  3. policy-gateway/README.md 是否同步更新"
+echo "  4. CHANGELOG / 发布说明 (如有)"
 exit 0

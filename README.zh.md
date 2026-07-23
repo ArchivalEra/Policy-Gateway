@@ -2,7 +2,7 @@
 
 **没证书不能上网。** 设备必须提交 CSR 或公钥，路由器用 Ed25519 签名，两阶段确认后放行。
 
-[![CI](https://github.com/ArchivalEra/Worker-Router-Gateway/actions/workflows/ci.yml/badge.svg)](https://github.com/ArchivalEra/Worker-Router-Gateway/actions/workflows/ci.yml)
+[![CI](https://github.com/ArchivalEra/Policy-Gateway/actions/workflows/ci.yml/badge.svg)](https://github.com/ArchivalEra/Policy-Gateway/actions/workflows/ci.yml)
 [![AGPL-3.0](https://img.shields.io/badge/license-AGPL--3.0-blue)](https://github.com/ArchivalEra/Policy-Gateway/blob/main/LICENSE)
 ![Rust](https://img.shields.io/badge/rust-1.96+-orange)
 ![MIPS](https://img.shields.io/badge/target-mipsel--24kc-blueviolet)
