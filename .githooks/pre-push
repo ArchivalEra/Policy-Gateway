@@ -1,36 +1,34 @@
 #!/bin/sh
 # pre-push — 精确到文件级别的推送前检查
-# 检查推送的变更是否漏掉了关联文件
+#
+# 需要持续更新的文件 (改了 A 必须确认 B 也更新):
+#   README.md ↔ README.zh.md  (根目录首页)
+#   policy-gateway/README.md → build.sh → docs/CROSS_COMPILE.md  (编译三件套)
+#   policy-gateway/Cargo.toml → vm/Cargo.toml  (版本号)
 
-# ===== 敏感文件 =====
 SENSITIVE="root-key.pem manager-token.txt seed.json .env id_ed25519 *.key *.p12"
 
-# ===== 关联文件组 (改了 A 也必须改 B) =====
-# 格式: "触发文件: 必须一起改的文件"
 check_group() {
     local trigger="$1" required="$2"
     if echo "$CHANGED" | grep -q "$trigger"; then
         if ! echo "$CHANGED" | grep -q "$required"; then
-            echo "⚠️  改了 $trigger 但没改 $required"
-            echo "   建议同步更新"
+            echo "⚠️  改了 $trigger 但没改 $required — 建议同步"
         fi
     fi
 }
 
-# 读取推送目标
 while read local_ref local_oid remote_ref remote_oid; do
     case "$remote_ref" in
         */main)
-            echo "⚠️  main 分支受保护。应使用 phaseX 分支。"
+            echo "⚠️  main 分支受保护。使用 phaseX 分支。"
             [ -z "$SKIP_MAIN_CHECK" ] && exit 1
             ;;
     esac
 done
 
-# 获取本次暂存的变更文件列表
 CHANGED=$(git diff --cached --name-only)
 
-# ===== 敏感文件检查 =====
+# 敏感文件
 for p in $SENSITIVE; do
     if echo "$CHANGED" | grep -qi "$p"; then
         echo "❌ 含敏感文件 '$p'，推送被拒绝"
@@ -38,30 +36,24 @@ for p in $SENSITIVE; do
     fi
 done
 
-# ===== 版本号一致性 =====
+# 版本号一致性
 PG_VER=$(grep "^version" policy-gateway/Cargo.toml | head -1 | cut -d'"' -f2)
 VM_VER=$(grep "^version" policy-gateway/vm/Cargo.toml 2>/dev/null | head -1 | cut -d'"' -f2)
 if [ "$PG_VER" != "$VM_VER" ]; then
-    echo "⚠️  版本号不一致: policy-gateway=$PG_VER vm=$VM_VER"
+    echo "❌ 版本号不一致: policy-gateway=$PG_VER vm=$VM_VER"
+    exit 1
 fi
 
-# ===== 文件关联检查 =====
+# 文件关联检查 (只检查真实存在的文件)
 check_group "README.md" "README.zh.md"
-check_group "README.zh.md" "README.md"
 check_group "policy-gateway/README.md" "policy-gateway/build.sh"
 check_group "policy-gateway/build.sh" "policy-gateway/docs/CROSS_COMPILE.md"
-check_group "docs/CROSS_COMPILE.md" "policy-gateway/build.sh"
-check_group "Cargo.toml" "policy-gateway/Cargo.toml"
+check_group "policy-gateway/docs/CROSS_COMPILE.md" "policy-gateway/build.sh"
 check_group "policy-gateway/Cargo.toml" "policy-gateway/vm/Cargo.toml"
 
-# ===== 语言 feature 检查 =====
-if echo "$CHANGED" | grep -q "lang.rs\|Cargo.toml"; then
-    echo "ℹ️  语言文件变更，确认测试: cargo test --features lang-en"
-fi
-
-# ===== 安全检查 =====
-if echo "$CHANGED" | grep -qE "nft\.rs|nftables|firewall"; then
-    echo "⚠️  nftables 规则变更，请在路由器上验证"
+# 安全敏感变更提示
+if echo "$CHANGED" | grep -qE "nft\.rs|nftables|firewall|pg_nat"; then
+    echo "⚠️  防火墙规则变更 — 请在路由器上验证"
 fi
 
 echo "✅  pre-push 检查通过"
