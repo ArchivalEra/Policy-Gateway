@@ -7,7 +7,7 @@
 //!   1. HTTP 服务监听 :8443
 //!   2. nftables 自动部署双表 (pg_pre + pg_nat)
 //!   3. 后台 GC 每小时运行
-//!   4. TODO Phase 1: nftables captive portal 拦截无证设备
+//!   4. nftables FORWARD policy-drop + pg_nat REDIRECT 门户
 
 mod tls;
 mod auth;
