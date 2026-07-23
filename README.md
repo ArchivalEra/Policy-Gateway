@@ -119,7 +119,7 @@ See [`docs/CROSS_COMPILE.md`](https://github.com/ArchivalEra/Policy-Gateway/blob
 
 | English | 中文 |
 |---------|------|
-| [Architecture](https://github.com/ArchivalEra/Policy-Gateway/blob/main/PLAN.md) | [核心架构](https://github.com/ArchivalEra/Policy-Gateway/blob/main/PLAN.md) (中英混) |
+| [Architecture](https://github.com/ArchivalEra/Policy-Gateway/blob/main/PLAN.md) | [架构文档](https://github.com/ArchivalEra/Policy-Gateway/blob/main/PLAN.md) |
 | [Building & Testing](https://github.com/ArchivalEra/Policy-Gateway/blob/main/policy-gateway/README.md) | [编译指南](https://github.com/ArchivalEra/Policy-Gateway/blob/main/policy-gateway/README.md) |
 | [User Guide](https://github.com/ArchivalEra/Policy-Gateway/blob/main/policy-gateway/docs/USER_GUIDE.md) | [用户手册](https://github.com/ArchivalEra/Policy-Gateway/blob/main/policy-gateway/docs/USER_GUIDE.md) |
 | [Cross-compilation Guide](https://github.com/ArchivalEra/Policy-Gateway/blob/main/policy-gateway/docs/CROSS_COMPILE.md) | [交叉编译](https://github.com/ArchivalEra/Policy-Gateway/blob/main/policy-gateway/docs/CROSS_COMPILE.md) |
