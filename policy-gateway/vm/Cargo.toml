@@ -1,6 +1,6 @@
 [package]
 name = "policy-gateway-vm"
-version = "0.3.3"
+version = "0.3.6"
 edition = "2021"
 
 # VM — "不死鸟" 版本管理器

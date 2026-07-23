@@ -690,12 +690,15 @@ Phase 2.8    交叉编译 + 路由器实测               ✅
 ### 进行中
 
 ```
-Phase 3.3    v0.3.3 路由器部署 + storage 抽象      🎯（当前）
+Phase 3.6    v0.3.6 worker-sync + 根证书两阶段      🎯（当前）
 ```
 Phase 2.9    🏗️ 项目重构: CLI 优先 + API 去前端 + 时间戳驱动   ✅
 Phase 3.0    统一配置 + rclone CLI + TLS 配置        ✅
 Phase 3.1    中英双语 + QUIC 提示                   ✅
 Phase 3.2    TLS 框架 + nftables 自动部署 + procd    ✅
+Phase 3.3    v0.3.3 路由器部署 + storage 抽象       ✅
+Phase 3.4    storage-more + bit claim + 核心冻结     ✅
+Phase 3.5    Token 哈希化 + VM 热更新 + 维护模式     ✅
 ```
 
 ### 搁置
