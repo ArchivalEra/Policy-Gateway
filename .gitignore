@@ -1,18 +1,19 @@
 # === Secrets ===
-newifi3_key
-newifi3_key.pub
-.reasonix/
+newifi3_key*
+*.key
+*.pem
+*.p12
+*.cert
 
-# === Local helper (not tracked) ===
+# === Local helpers (not for public) ===
+scripts/
 proxy-method.sh
+pre-do.sh
 git-ssh-proxy.py
+progress/
 
 # === Build artifacts ===
 policy-gateway/target/
-
-# === Large binaries ===
-cloudflared-mipsle-upx
-ca-example-gateway.tar.gz
 
 # === Python ===
 __pycache__/
@@ -27,39 +28,42 @@ __pycache__/
 # === OS ===
 .DS_Store
 Thumbs.db
-# Toolchain (download by setup script, not tracked in git)
+
+# === User-specific ===
+*.local
+
+# === Toolchain (downloaded, not tracked) ===
 policy-gateway/.toolchain/
-policy-gateway/mipsel-linux-musl-cross/
-policy-gateway/zig-install/
-policy-gateway/zig-linux-*/
+policy-gateway/custom-tc/
+policy-gateway/mips-sysroot/
+policy-gateway/rustup-home/
+policy-gateway/rust-sysroot/
 policy-gateway/rust-nightly-*/
 policy-gateway/rust-src-*/
 policy-gateway/rust-src-nightly-*/
-policy-gateway/custom-tc/
-policy-gateway/mips-sysroot/
-policy-gateway/lib-src
-policy-gateway/pgw
+policy-gateway/zig-install/
+policy-gateway/zig-linux-*/
+policy-gateway/*.tar.*
 policy-gateway/rustc-bootstrap.sh
-policy-gateway/rust-sysroot-patch/
+policy-gateway/rustc-wrapper.sh
 policy-gateway/.cargo-home/
 policy-gateway/.rustup-home/
-policy-gateway/*.tar.*
-
-policy-gateway/rust-sysroot/
-policy-gateway/rustc-wrapper.sh
-policy-gateway/rustup-home/
+policy-gateway/lib-src
+policy-gateway/pgw
+policy-gateway/rust-sysroot-patch/
+policy-gateway/.cargo/
+.rustup-tmp
+.cargo-tmp
 rust-src-*/
+
+# === Deploy secrets (generated, not tracked) ===
 policy-gateway/deploy/root-key.pem
 policy-gateway/deploy/root-cert.pem
 policy-gateway/deploy/manager-token.txt
 policy-gateway/deploy/seed.json
-# pre-do 本地流程
-pre-do.sh
-# pre-do 本地进度
-progress/
-policy-gateway/.cargo/
-.rustup-tmp
-.cargo-tmp
-# Frontend module (Vite 8, not pushed to git)
+
+# === Frontend module (Vite 8, not in repo) ===
 policy-gateway/docs/frontend-module/
 
+# === Reasonix state ===
+.reasonix/
