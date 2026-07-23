@@ -1,4 +1,4 @@
-//! /api/help — 设备接入教程（JSON，MCU 优先）
+//! /api/help — 设备接入教程（JSON，兼容所有 HTTP 设备）
 
 use axum::extract::Query;
 use axum::Json;
@@ -26,38 +26,128 @@ pub async fn handle(
     let topic = q.get("topic").map(|s| s.as_str()).unwrap_or("all");
     match topic {
         "mcu" => Json(vec![mcu_guide()]),
-        _ => Json(vec![mcu_guide()]),
+        "browser" => Json(vec![browser_guide()]),
+        "cli" => Json(vec![cli_guide()]),
+        "headless" => Json(vec![headless_guide()]),
+        _ => Json(vec![mcu_guide(), browser_guide(), cli_guide(), headless_guide()]),
     }
 }
 
 fn mcu_guide() -> HelpResponse {
     HelpResponse {
         topic: "mcu".into(),
-        title: "MCU / 单片机接入 (推荐 pubkey 方式)".into(),
+        title: "MCU / 单片机接入 (推荐 pubkey 直发)".into(),
         steps: vec![
             HelpStep {
                 title: "1. 生成密钥".into(),
-                body: "Ed25519 密钥，只发公钥 hex 给服务器（32 字节 = 64 hex 字符）".into(),
-                cli: Some("openssl genpkey -algorithm ed25519 -out /tmp/device.key\nopenssl pkey -in /tmp/device.key -pubout | tail -1 | xxd -r -p | xxd -p | tr -d '\\n'".into()),
-                expected: Some("输出 64 个 hex 字符，例如: 3b6a27bccef3c15e6a7c8b2d1a9f0e5d4c3b2a1f0e5d4c3b2a1f0e5d4c3b2a".to_string()),
+                body: "Ed25519 密钥，只发公钥 hex（32 字节 = 64 hex 字符）\n比 CSR 简单 10 倍，单片机无压力".into(),
+                cli: Some("# ESP32 (Arduino):\n  uint8_t pk[32];\n  crypto_sign_keypair(pk, sk);\n  Serial.printf(\"PUBKEY: %s\\n\", bin2hex(pk, 32));".into()),
+                expected: Some("输出 64 hex 字符，如: 3b6a27bccef3c15e6a7c8b2d1a9f0e5d...".into()),
             },
             HelpStep {
                 title: "2. 提交申请".into(),
                 body: "POST 公钥到 /api/signup，一行 curl 搞定".into(),
                 cli: Some("curl -X POST http://host:8443/api/signup \\\n  -H 'Content-Type: application/json' \\\n  -d '{\"pubkey\":\"<64_hex>\",\"hostname\":\"my-device\",\"requested\":\"01\"}'".into()),
-                expected: Some("返回 {\"request_id\":\"...\",\"status\":\"pending_confirm\"}".to_string()),
+                expected: Some("{\"request_id\":\"...\",\"status\":\"pending_confirm\"}".into()),
             },
             HelpStep {
                 title: "3. 等待审批".into(),
-                body: "管理员同意后，证书自动生效。可通过 /api/signup/status?sha256=<hex> 查询状态。".into(),
-                cli: Some("# 用返回的 sha256 查询状态\ncurl http://host:8443/api/signup/status?sha256=<sha256>".into()),
-                expected: Some("{\"status\":\"active\"} → 成功，可以上网".to_string()),
+                body: "管理员同意后证书自动生效\n查询状态: GET /api/signup/status?sha256=<hex>".into(),
+                cli: None,
+                expected: Some("{\"status\":\"active\"} → 可上网".into()),
+            },
+        ],
+    }
+}
+
+fn browser_guide() -> HelpResponse {
+    HelpResponse {
+        topic: "browser".into(),
+        title: "浏览器接入".into(),
+        steps: vec![
+            HelpStep {
+                title: "1. 访问 /signup".into(),
+                body: "打开 http://<gateway>:8443/signup\n页面引导生成 CSR 并提交".into(),
+                cli: None,
+                expected: Some("看到证书申请页面".into()),
             },
             HelpStep {
-                title: "4. ESP32 快速集成".into(),
-                body: "Arduino 示例:\n1. 生成 Ed25519 密钥\n2. 发送 pubkey hex\n3. 存储返回的证书到 NVS\n4. HTTPS 请求时携带证书".into(),
+                title: "2. 填写表单".into(),
+                body: "设备名 + 权限模板 + CSR（浏览器自动生成或粘贴）\n提交后等管理员审批".into(),
                 cli: None,
-                expected: Some("不需要 mTLS 库，SHA256 查表验证".to_string()),
+                expected: Some("显示 request_id 和待审批状态".into()),
+            },
+            HelpStep {
+                title: "3. 查看状态".into(),
+                body: "刷新 /signup/status?id=<request_id>\nactive → 可上网".into(),
+                cli: None,
+                expected: None,
+            },
+        ],
+    }
+}
+
+fn cli_guide() -> HelpResponse {
+    HelpResponse {
+        topic: "cli".into(),
+        title: "命令行 / 脚本接入 (pg CLI)".into(),
+        steps: vec![
+            HelpStep {
+                title: "1. 设置环境".into(),
+                body: "PG_SERVER=http://gateway:8443  PG_TOKEN=<token>".into(),
+                cli: Some("export PG_SERVER=http://gateway:8443\nexport PG_TOKEN=<manager-token>".into()),
+                expected: None,
+            },
+            HelpStep {
+                title: "2. 申请证书 (pubkey)".into(),
+                body: "一行命令申请：pg cert sign \"<64_hex_pubkey>\"".into(),
+                cli: Some("pg cert sign \"abcd1234abcd1234abcd1234abcd1234abcd1234abcd1234abcd1234abcd1234\"".into()),
+                expected: Some("返回 request_id + pending_confirm".into()),
+            },
+            HelpStep {
+                title: "3. 查看待审批".into(),
+                body: "管理员查看待审批列表".into(),
+                cli: Some("pg pending".into()),
+                expected: Some("显示所有待审批条目 JSON".into()),
+            },
+            HelpStep {
+                title: "4. 批准/驳回".into(),
+                body: "管理员批准".into(),
+                cli: Some("pg approve <request_id>\npg reject <request_id>".into()),
+                expected: Some("{\"status\":\"approved\"}".into()),
+            },
+            HelpStep {
+                title: "5. 查询状态".into(),
+                body: "用 SHA256 查证书状态".into(),
+                cli: Some("pg cert status <sha256_hex>".into()),
+                expected: Some("{\"status\":\"active\"}".into()),
+            },
+        ],
+    }
+}
+
+fn headless_guide() -> HelpResponse {
+    HelpResponse {
+        topic: "headless".into(),
+        title: "无头设备 / Linux 服务器接入 (curl + openssl)".into(),
+        steps: vec![
+            HelpStep {
+                title: "1. 生成 CSR".into(),
+                body: "用 openssl 生成 Ed25519 密钥和 CSR".into(),
+                cli: Some("openssl req -new -newkey ed25519 -nodes \\\n  -keyout /etc/ssl/device.key -out /tmp/device.csr \\\n  -subj \"/CN=$(hostname)\"".into()),
+                expected: Some("device.key + device.csr".into()),
+            },
+            HelpStep {
+                title: "2. 提交申请".into(),
+                body: "POST CSR 到 /api/signup\n保存返回的 request_id 和 cert_pem".into(),
+                cli: Some("CSR=$(cat /tmp/device.csr | tr '\\n' ' ')\nRESP=$(curl -s -X POST http://host:8443/api/signup \\\n  -H 'Content-Type: application/json' \\\n  -d \"{\\\"csr\\\":\\\"$CSR\\\",\\\"hostname\\\":\\\"$(hostname)\\\"}\")\nRID=$(echo $RESP | grep -o '\"request_id\":\"[^\"]*\"' | cut -d'\"' -f4)\nCERT=$(echo $RESP | grep -o '\"cert_pem\":\"[^\"]*\"' | cut -d'\"' -f4)".into()),
+                expected: Some("RID + CERT 存好，等审批".into()),
+            },
+            HelpStep {
+                title: "3. 定时续签 (可选)".into(),
+                body: "cron 每周跑一次".into(),
+                cli: Some("0 0 * * 0 /path/to/setup.sh # 证书过期前自动续".into()),
+                expected: None,
             },
         ],
     }

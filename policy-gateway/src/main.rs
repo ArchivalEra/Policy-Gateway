@@ -52,7 +52,30 @@ async fn main() {
     match args[1].as_str() {
         "serve" | "gui" | "web" => {
             let serve_html = !args.iter().any(|a| a == "--no-html" || a == "--api-only");
+            let pid = std::process::id();
+            let _ = std::fs::write("/var/run/policy-gateway.pid", pid.to_string());
+            let _ = std::fs::write("/tmp/policy-gateway.pid", pid.to_string());
             start_server(serve_html).await;
+        }
+        "stop" => {
+            let pid_paths = ["/tmp/policy-gateway.pid", "/var/run/policy-gateway.pid"];
+            let mut stopped = false;
+            for path in &pid_paths {
+                if let Ok(s) = std::fs::read_to_string(path) {
+                    if let Ok(pid) = s.trim().parse::<i32>() {
+                        let _ = std::process::Command::new("kill").args(["-15", &pid.to_string()]).status();
+                        std::thread::sleep(std::time::Duration::from_secs(1));
+                        let _ = std::process::Command::new("kill").args(["-9", &pid.to_string()]).status();
+                        let _ = std::fs::remove_file(path);
+                        println!("✅ policy-gateway stopped (PID {})", pid);
+                        stopped = true;
+                    }
+                }
+            }
+            if !stopped {
+                let _ = std::process::Command::new("killall").args(["-9", "policy-gateway"]).status();
+                println!("✅ all policy-gateway processes stopped");
+            }
         }
         _ => { cli_mode(&args).await; }
     }
