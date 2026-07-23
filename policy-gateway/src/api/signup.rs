@@ -45,6 +45,8 @@ pub struct SignupResponse {
     pub status: String,
     pub sha256: String,
     pub cert_pem: Option<String>,
+    /// 建议轮询间隔（秒），MCU 可依此值定时查询审批状态
+    pub poll_interval: u64,
 }
 
 #[derive(Serialize)]
@@ -129,6 +131,7 @@ async fn handle_csr(
         status: "pending_confirm".into(),
         sha256: hex::encode(sha256),
         cert_pem: Some(cert_pem),
+        poll_interval: 15,
     }))
 }
 
@@ -188,6 +191,7 @@ async fn handle_pubkey(
         status: "pending_confirm".into(),
         sha256: hex::encode(sha256),
         cert_pem: Some(cert_pem),
+        poll_interval: 15,
     }))
 }
 
@@ -212,7 +216,7 @@ async fn handle_self_signed(
         let bitmap = parse_requested_bitmap(req.requested.as_deref());
         table.add_pending(sha256, req.hostname.clone(), request_id.clone(), bitmap);
     }
-    Ok(Json(SignupResponse { request_id, status: "pending".into(), sha256: hex::encode(sha256), cert_pem: None }))
+    Ok(Json(SignupResponse { request_id, status: "pending".into(), sha256: hex::encode(sha256), cert_pem: None, poll_interval: 15 }))
 }
 
 fn parse_role(requested: Option<&str>) -> &'static str {

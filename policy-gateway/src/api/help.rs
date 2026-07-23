@@ -51,8 +51,8 @@ fn mcu_guide() -> HelpResponse {
                 expected: Some("{\"request_id\":\"...\",\"status\":\"pending_confirm\"}".into()),
             },
             HelpStep {
-                title: "3. 等待审批".into(),
-                body: "管理员同意后证书自动生效\n查询状态: GET /api/signup/status?sha256=<hex>".into(),
+                title: "3. 轮询状态".into(),
+                body: "提交后返回 poll_interval=15，每 15 秒查一次即可\n管理员批准后 status→active，即代表可上网".into(),
                 cli: None,
                 expected: Some("{\"status\":\"active\"} → 可上网".into()),
             },
