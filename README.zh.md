@@ -156,8 +156,7 @@ policy-gateway-vm rollback test   回滚
 - ✅ 中英双语
 - ✅ MIPS 交叉编译 (MT7621 实测通过)
 - ✅ 存储后端抽象 (redb / S3 / mirror stub)
-- 🔄 TLS 监听器 (Phase 3.4)
-- 🔄 插件模块 (计算、QUIC)
+- 🔄 TLS 监听器 与 QUIC 插件模块 (Phase 3.7+)
 
 ## 许可证
 

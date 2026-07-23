@@ -157,10 +157,6 @@ policy-gateway-vm rollback test   # Rollback
 | 3.4 | storage-more module, bit claim, core freeze |
 | 3.5 | Token hashing, VM hot-update, maintenance mode |
 | **3.6** 🎯 | **worker-sync, perms auth, /api/help 4-guide, nftables security fix** |
-| **3.3** 🎯 | **Router-deployed v0.3.3, store panic fix, storage abstraction** |
-| 3.4 | storage-more module, bit claim, core freeze |
-| 3.5 | Token hashing, VM hot-update, maintenance mode |
-| **3.6** 🎯 | **worker-sync, root cert two-phase, Worker /api/sync** |
 
 - ✅ Core loop: signup → approve → active
 - ✅ Ed25519 CA with two-phase commit
@@ -170,8 +166,7 @@ policy-gateway-vm rollback test   # Rollback
 - ✅ i18n: Chinese + English
 - ✅ Cross-compilation for MIPS (MT7621 verified)
 - ✅ Storage backend abstraction (redb / S3 / mirror stub)
-- 🔄 TLS listener (Phase 3.4)
-- 🔄 Plug-in modules (compute, quic)
+- 🔄 TLS listener and plug-in modules (Phase 3.7+)
 
 ## License
 
