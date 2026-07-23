@@ -39,9 +39,32 @@ done
 # 版本号一致性
 PG_VER=$(grep "^version" policy-gateway/Cargo.toml | head -1 | cut -d'"' -f2)
 VM_VER=$(grep "^version" policy-gateway/vm/Cargo.toml 2>/dev/null | head -1 | cut -d'"' -f2)
-if [ "$PG_VER" != "$VM_VER" ]; then
-    echo "❌ 版本号不一致: policy-gateway=$PG_VER vm=$VM_VER"
+VMOD_VER=$(grep "^version" policy-gateway/vm-mod/Cargo.toml 2>/dev/null | head -1 | cut -d'"' -f2)
+if [ "$PG_VER" != "$VM_VER" ] || [ "$PG_VER" != "$VMOD_VER" ]; then
+    echo "❌ 版本号不一致: core=$PG_VER vm=$VM_VER vm-mod=$VMOD_VER"
     exit 1
+fi
+
+# 自动编译检查 (有 src 变更时)
+if echo "$CHANGED" | grep -qE "policy-gateway/src/|*.rs|Cargo.toml|Cargo.lock"; then
+    echo "🔨  代码变更 — 运行 cargo check..."
+    cd policy-gateway && cargo check 2>&1 | tail -3
+    if [ $? -ne 0 ]; then
+        echo "❌ 编译检查失败"
+        exit 1
+    fi
+    cd ..
+fi
+
+# 自动测试 (src 或 test 变更时)
+if echo "$CHANGED" | grep -qE "src/|test/"; then
+    echo "🧪  测试变更 — 运行 cargo test..."
+    cd policy-gateway && cargo test 2>&1 | grep "test result"
+    if [ $? -ne 0 ]; then
+        echo "❌ 测试失败"
+        exit 1
+    fi
+    cd ..
 fi
 
 # 文件关联检查 (只检查真实存在的文件)

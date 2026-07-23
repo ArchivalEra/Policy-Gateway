@@ -26,12 +26,18 @@ jobs:
             ~/.cargo/git/db/
             target/
           key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
-      - name: Test
+      - name: Test (default features)
         working-directory: policy-gateway
         run: cargo test
-      - name: Build (release)
+      - name: Test (lang-en)
+        working-directory: policy-gateway
+        run: cargo test --features lang-en
+      - name: Build (release, default)
         working-directory: policy-gateway
         run: cargo build --release
-      - name: Build VM
+      - name: Build (tls + auto-heal)
         working-directory: policy-gateway
-        run: cargo build -p policy-gateway-vm --release
+        run: cargo build --release --features "tls,auto-heal"
+      - name: Build VM + vm-mod
+        working-directory: policy-gateway
+        run: cargo build -p policy-gateway-vm -p vm-mod --release
