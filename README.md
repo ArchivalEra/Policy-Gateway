@@ -108,7 +108,7 @@ See [`docs/CROSS_COMPILE.md`](https://github.com/ArchivalEra/Policy-Gateway/blob
 
 | Item | Minimum |
 |------|---------|
-| Router | MT7620/MT7621 (MIPS 24kc), x86_64, ARM |
+| Router | MIPS (mipsel/mips), ARM (aarch64/armv7), x86_64, RISC-V |
 | Flash | 2 MB (binary) + 100 KB (data) |
 | RAM | 4 MB (runtime) |
 | Kernel | Linux 5.15+ with nftables |

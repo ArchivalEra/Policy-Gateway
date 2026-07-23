@@ -36,14 +36,38 @@ cargo test --features lang-en  # 英文编译测试
 ## 编译
 
 ```bash
-# 本地
+# 本地 (x86_64)
 cargo build --release
 
-# 路由器 mipsel
+# ImmortalWrt / OpenWrt 全架构支持
+# mipsel (32-bit MIPS little-endian, 如 MT7620/MT7621)
 cargo build --target mipsel-unknown-linux-musl --release \
   -Z build-std=core,alloc,std,panic_abort
 
-# VM 独立二进制
+# mips (32-bit MIPS big-endian)
+cargo build --target mips-unknown-linux-musl --release \
+  -Z build-std=core,alloc,std,panic_abort
+
+# aarch64 (64-bit ARM, 如 IPQ8074, MT7986)
+cargo build --target aarch64-unknown-linux-musl --release \
+  -Z build-std=core,alloc,std,panic_abort
+
+# armv7 (32-bit ARM hard-float)
+cargo build --target armv7-unknown-linux-musleabihf --release \
+  -Z build-std=core,alloc,std,panic_abort
+
+# x86_64 (64-bit x86)
+cargo build --target x86_64-unknown-linux-musl --release \
+  -Z build-std=core,alloc,std,panic_abort
+
+# riscv64 (RISC-V 64-bit)
+cargo build --target riscv64gc-unknown-linux-musl --release \
+  -Z build-std=core,alloc,std,panic_abort
+
+# 查看架构列表:
+# rustc --print target-list | grep musl
+
+# VM 独立二进制 (native only)
 cargo build -p policy-gateway-vm --release
 
 # 英文版 (编译时选择)

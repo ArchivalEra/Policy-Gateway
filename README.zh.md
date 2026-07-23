@@ -98,7 +98,7 @@ ssh root@<路由器IP> "MANAGER_TOKEN=<token> /tmp/policy-gateway serve &"
 
 | 项目 | 最低 |
 |------|------|
-| 路由器 | MT7620/MT7621 (MIPS 24kc), x86_64, ARM |
+| 路由器 | MIPS (mipsel/mips), ARM (aarch64/armv7), x86_64, RISC-V |
 | 闪存 | 2 MB (程序) + 100 KB (数据) |
 | 内存 | 4 MB (运行时) |
 | 内核 | Linux 5.15+ 支持 nftables |
