@@ -106,53 +106,55 @@ pub async fn handle_page(
 
     let safe_token = html_escape(token);
     let html = format!(r#"<!DOCTYPE html>
-<html lang="zh">
-<head><meta charset="UTF-8"><title>审批面板</title>
-<style>
-body{{font-family:sans-serif;max-width:800px;margin:auto;padding:20px}}
-table{{width:100%;border-collapse:collapse}}
-td,th{{border:1px solid #ddd;padding:8px;text-align:left}}
-tr:nth-child(even){{background:#f9f9f9}}
-button{{cursor:pointer;margin:2px}}
-</style>
-</head>
+<html lang="zh"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>审批面板</title><style>
+*{{box-sizing:border-box}}
+body{{font-family:-apple-system,BlinkMacSystemFont,sans-serif;max-width:960px;margin:0 auto;padding:16px;background:#f5f5f7;color:#1d1d1f}}
+.card{{background:#fff;border-radius:12px;padding:16px;margin:12px 0;box-shadow:0 1px 3px#0000001a}}
+h1{{font-size:24px;font-weight:600;margin:0 0 16px;display:flex;align-items:center;gap:8px}}
+input{{padding:8px 12px;border:1px solid#d1d1d6;border-radius:6px;font-size:14px}}
+.btn{{padding:6px 16px;border:none;border-radius:6px;font-size:13px;cursor:pointer}}
+.btn-primary{{background:#007aff;color:#fff}}
+.btn-approve{{background:#34c759;color:#fff}}
+.btn-reject{{background:#ff3b30;color:#fff}}
+table{{width:100%;border-collapse:collapse;font-size:14px}}
+td,th{{padding:10px 8px;text-align:left;border-bottom:1px solid#e5e5ea}}
+th{{font-size:12px;color:#86868b;text-transform:uppercase;letter-spacing:.5px}}
+tr:hover{{background:#f5f5f7}}
+code{{background:#e8e8ed;padding:2px 6px;border-radius:4px;font-size:12px}}
+@media(max-width:600px){{td,th{{display:block}}th{{display:none}}td{{border:none;padding:6px 8px}}td:before{{content:attr(data-label);font-weight:600;display:inline-block;width:80px;font-size:12px;color:#86868b}}}}
+</style></head>
 <body>
-<h1>🔐 审批面板</h1>
-<form method="get" style="margin-bottom:12px">
-<label>Token: <input type="text" name="token" value="{safe_token}" size="40" /></label>
-<button type="submit">解锁</button>
-</form>
-<table>
-<tr><th>ID</th><th>主机名</th><th>SHA256</th><th>状态</th><th>操作</th></tr>
-{rows}
-</table>
-<p><small>点击操作会自动刷新</small></p>
+<div class="card"><h1>🔐 审批面板</h1>
+<form method="get" style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+<label style="display:flex;align-items:center;gap:4px">Token: <input type="password" name="token" value="{}" /></label>
+<button class="btn btn-primary" type="submit">解锁</button>
+</form></div>
+{}
+<p style="color:#86868b;font-size:12px;margin-top:16px"><a href="/signup" style="color:#007aff">← 返回申请</a></p>
 <script>
-const TOKEN = "{safe_token}";
-async function approve(id, bitmap) {{
-    const r = await fetch('/api/manager/approve', {{
-        method:'POST',
-        headers:{{'Content-Type':'application/json'}},
-        body: JSON.stringify({{request_id:id, action:'approve', bitmap, token:TOKEN}})
-    }});
-    const d = await r.json();
-    alert(d.message);
-    location.reload();
-}}
-async function reject(id) {{
-    const r = await fetch('/api/manager/approve', {{
-        method:'POST',
-        headers:{{'Content-Type':'application/json'}},
-        body: JSON.stringify({{request_id:id, action:'reject', token:TOKEN}})
-    }});
-    const d = await r.json();
-    alert(d.message);
-    location.reload();
-}}
+const TOKEN="{}";
+async function approve(id,b){{const r=await fetch('/api/manager/approve',{{method:'POST',headers:{{'Content-Type':'application/json'}},body:JSON.stringify({{request_id:id,action:'approve',bitmap:b,token:TOKEN}})}});alert((await r.json()).message);location.reload()}}
+async function reject(id){{const r=await fetch('/api/manager/approve',{{method:'POST',headers:{{'Content-Type':'application/json'}},body:JSON.stringify({{request_id:id,action:'reject',token:TOKEN}})}});alert((await r.json()).message);location.reload()}}
 </script>
-</body>
-</html>"#);
-
+</body></html>"#,
+        safe_token,
+        if pending.is_empty() {
+            r#"<div class="card"><p style="text-align:center;color:#86868b">✅ 暂无待审批申请</p></div>"#.to_string()
+        } else {
+            let mut t = r#"<div class="card"><table><tr><th>ID</th><th>主机名</th><th>SHA256</th><th>权限</th><th>状态</th><th>操作</th></tr>"#.to_string();
+            for (rid, entry) in &pending {
+                let sha256_hex = hex::encode(entry.sha256);
+                let safe_hostname = html_escape(&entry.hostname);
+                let safe_rid = html_escape(rid);
+                t.push_str(&format!(r#"<tr><td data-label="ID"><code>{}</code></td><td data-label="主机名">{}</td><td data-label="SHA256"><code>{}</code></td><td data-label="权限"><code>{}</code></td><td data-label="状态"><code>{}</code></td><td data-label="操作"><button class="btn btn-approve" onclick="approve('{}',1)">批准</button><button class="btn btn-reject" onclick="reject('{}')">驳回</button></td></tr>"#,
+                    safe_rid, safe_hostname, &sha256_hex[..12], format!("{:x}", entry.requested_bitmap), entry.status, safe_rid, safe_rid));
+            }
+            t.push_str(r#"</table></div>"#);
+            t
+        },
+        safe_token
+    );
     Ok(Html(html))
 }
 

@@ -259,33 +259,38 @@ pub async fn handle_form(
     let count = table.list_pending().len();
     Html(format!(r#"<!DOCTYPE html><html lang="zh"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>证书申请</title><style>
 *{{box-sizing:border-box}}
-body{{font-family:-apple-system,system-ui,sans-serif;max-width:600px;margin:auto;padding:20px;background:#f5f5f5;color:#333}}
-input,select,textarea{{width:100%;padding:10px;margin:6px 0;border:1px solid #ddd;border-radius:6px;font-size:16px;box-sizing:border-box}}
-button{{padding:12px 20px;background:#0066cc;color:#fff;border:none;border-radius:6px;cursor:pointer;font-size:16px;width:100%}}
-button:hover{{background:#0052a3}}
-button:disabled{{opacity:.5;cursor:not-allowed}}
-code{{background:#eee;padding:2px 6px;border-radius:3px;font-size:13px;word-break:break-all}}
-pre{{overflow:auto;max-height:200px;background:#f4f4f4;padding:10px;border-radius:6px;font-size:13px}}
-.card{{background:#fff;border-radius:12px;padding:20px;margin:12px 0;box-shadow:0 1px 3px rgba(0,0,0,.1)}}
-.badge{{display:inline-block;padding:2px 8px;border-radius:4px;font-size:12px;margin:2px}}
-.badge-green{{background:#d4edda;color:#155724}}
-.badge-yellow{{background:#fff3cd}}
-@media(max-width:480px){{body{{padding:10px}}.card{{padding:12px}}}}
-<h1>📜 证书申请</h1>
-<p>待审批: {count}</p>
-<div style="background:#f0f8ff;padding:12px;border-radius:8px;margin-bottom:12px">
-<strong>🤖 MCU / 无头设备？</strong>
-<p style="font-size:14px">用 curl 提交预先生成的 CSR：<br>
+body{{font-family:-apple-system,BlinkMacSystemFont,sans-serif;max-width:600px;margin:0 auto;padding:16px;background:#f5f5f7;color:#1d1d1f}}
+.card{{background:#fff;border-radius:12px;padding:16px;margin:12px 0;box-shadow:0 1px 3px#0000001a}}
+h1{{font-size:22px;font-weight:600;margin:0 0 4px}}
+input,select,textarea{{width:100%;padding:10px;margin:6px 0;border:1px solid#d1d1d6;border-radius:8px;font-size:15px}}
+textarea{{font-family:monospace;font-size:13px}}
+button{{padding:10px 0;border:none;border-radius:8px;font-size:15px;cursor:pointer;width:100%;transition:opacity.2s}}
+button:hover{{opacity:.85}}
+.btn-primary{{background:#007aff;color:#fff}}
+.btn-secondary{{background:#e8e8ed;color:#1d1d1f}}
+.btn-success{{background:#34c759;color:#fff}}
+code{{background:#e8e8ed;padding:2px 6px;border-radius:4px;font-size:12px;word-break:break-all}}
+pre{{overflow:auto;max-height:150px;background:#f5f5f7;padding:10px;border-radius:8px;font-size:13px;border:1px solid#e5e5ea}}
+.tag{{display:inline-block;padding:2px 8px;border-radius:4px;font-size:11px;font-weight:500}}
+.tag-blue{{background:#e8f0fe;color:#1967d2}}
+.tag-green{{background:#e6f4ea;color:#137333}}
+a{{color:#007aff;text-decoration:none}}
+@media(max-width:480px){{body{{padding:12px}}.card{{padding:12px}}}}</style>
+<div class="card"><h1>📜 证书申请</h1>
+<p style="color:#86868b;font-size:13px;margin:0 0 8px">待审批: {count}</p>
+<div style="background:#f0f7ff;border-radius:8px;padding:12px;margin-bottom:12px;font-size:14px">
+<strong>🤖 MCU / 无头设备?</strong><br>
 <code style="font-size:12px">curl -X POST http://host:8443/api/signup -H 'Content-Type: application/json' -d '{{"csr":"PEM","hostname":"my-device"}}'</code><br>
-<a href="/api/help?topic=mcu" style="font-size:12px">完整 MCU 教程 →</a></p>
-</div>
-<div style="background:#fff;border:1px solid #ddd;padding:12px;border-radius:8px">
-<h3>浏览器一键申请</h3>
-<button id="genKeyBtn" onclick="generateKey()">🔑 生成本地密钥对</button>
-<span id="keyStatus"></span>
-<form id="f" onsubmit="submitForm(event)" style="display:none" id="formWrap">
-<label>设备名: <input type="text" id="h" required></label>
-<label>权限: <select id="t"><option value="01">🌐 上网</option><option value="05">⚙️ 上网+计算</option></select></label>
+<a href="/api/help">完整教程 →</a></div>
+<div class="card">
+<h3>🔑 生成本地密钥</h3>
+<button class="btn-primary" id="genKeyBtn" onclick="generateKey()">生成密钥对</button>
+<span id="keyStatus"></span></div>
+<div class="card" id="formWrap" style="display:none">
+<form id="f" onsubmit="submitForm(event)">
+<label style="font-weight:500;font-size:14px">设备名 <input type="text" id="h" placeholder="如: 客厅温湿度计" required></label>
+<label style="font-weight:500;font-size:14px">权限
+<select id="t"><option value="01">🌐 上网</option><option value="05">⚙️ 上网+计算</option></select></label>
 <button type="submit" id="subBtn">提交申请</button>
 </form>
 </div>

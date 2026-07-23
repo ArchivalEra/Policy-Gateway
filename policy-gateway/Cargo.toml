@@ -8,6 +8,7 @@ default = ["minimize", "frontend"]
 frontend = []
 minimize = []
 modelize = []
+lang-en = []    # 编译时英文（默认中文）
 
 compute = []
 storage = []

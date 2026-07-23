@@ -4,6 +4,15 @@ use std::sync::OnceLock;
 use std::collections::HashMap;
 pub use StrKey as S;
 
+/// 编译时 HTML 语言选择 — 无运行时开销
+/// 默认中文, 启用 lang-en feature 时返回英文
+#[macro_export]
+macro_rules! html_lang {
+    ($zh:expr, $en:expr) => {
+        if cfg!(feature = "lang-en") { $en } else { $zh }
+    };
+}
+
 static LANG: OnceLock<Lang> = OnceLock::new();
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
