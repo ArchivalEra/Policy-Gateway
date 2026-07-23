@@ -82,6 +82,9 @@ pub struct Config {
     pub worker_token: Option<String>,
     /// 与 Worker 同步间隔（秒），默认 300
     pub worker_sync_interval: u64,
+    /// 受监控的网络接口列表（空 = 所有接口）
+    /// 例如: ["br-lan", "eth0.2"]
+    pub monitor_interfaces: Vec<String>,
     /// 自定义 DNS 映射 (host → IP, 仅在路由器生效)
     pub dns_hosts: Vec<String>,  // 格式: "域名=IP", 如 "ca.网站=192.168.1.1"
     /// 是否允许直接访问网关 IP (不经域名)
@@ -114,6 +117,7 @@ impl Default for Config {
             worker_url: None,
             worker_token: None,
             worker_sync_interval: 300,
+            monitor_interfaces: vec![],
             dns_hosts: vec![],
             allow_direct_ip: true,
         }
@@ -165,6 +169,9 @@ impl Config {
         if let Ok(v) = std::env::var("PG_WORKER_URL") { self.worker_url = Some(v); }
         if let Ok(v) = std::env::var("PG_WORKER_TOKEN") { self.worker_token = Some(v); }
         if let Ok(v) = std::env::var("PG_WORKER_SYNC_INTERVAL") { self.worker_sync_interval = v.parse().unwrap_or(300); }
+        if let Ok(v) = std::env::var("PG_MONITOR_INTERFACES") {
+            self.monitor_interfaces = v.split(',').map(|s| s.trim().to_string()).filter(|s| !s.is_empty()).collect();
+        }
         self
     }
 

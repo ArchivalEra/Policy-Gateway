@@ -270,8 +270,17 @@ async fn start_server(serve_html: bool) {
     });
 
     // nftables 自动部署
+    let nft_config = crate::config::Config::load();
+    let nft_interfaces = nft_config.monitor_interfaces.clone();
+    drop(nft_config);
+
     log::info!("🛡️  部署 nftables 规则...");
-    match crate::nft::deploy() {
+    let nft_result = if nft_interfaces.is_empty() {
+        crate::nft::deploy()
+    } else {
+        crate::nft::deploy_with_interfaces(&nft_interfaces)
+    };
+    match nft_result {
         Ok(_) => log::info!("✅ nftables 双表已部署"),
         Err(e) => log::warn!("⚠️  nftables 部署失败: {}（如非 OpenWrt 环境可忽略）", e),
     }

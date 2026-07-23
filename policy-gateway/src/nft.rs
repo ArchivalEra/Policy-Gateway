@@ -15,6 +15,11 @@ pub fn check_nft() -> bool {
 
 /// 部署 nftables 双表 (pg_pre + pg_nat)
 pub fn deploy() -> Result<(), String> {
+    deploy_with_interfaces(&[])
+}
+
+/// 指定接口部署 nftables 规则
+pub fn deploy_with_interfaces(interfaces: &[String]) -> Result<(), String> {
     if !check_nft() {
         return Err("nft 命令不可用".into());
     }
@@ -27,7 +32,6 @@ pub fn deploy() -> Result<(), String> {
 
         if !out.status.success() {
             let stderr = String::from_utf8_lossy(&out.stderr);
-            // EEXIST (table/set already exists) is OK
             if !stderr.contains("File exists") && !stderr.contains("chain already exists") {
                 return Err(format!("nft 错误: {}", stderr.trim()));
             }
@@ -37,23 +41,39 @@ pub fn deploy() -> Result<(), String> {
 
     // ===== inet pg_pre (filter) =====
     nft(&["add", "table", "inet", "pg_pre"])?;
-    // 清空旧规则再部署（避免重复）
     let _ = nft(&["flush", "chain", "inet", "pg_pre", "forward"]);
     nft(&["add", "set", "inet", "pg_pre", "authorized_ips", "{ type ipv4_addr; flags dynamic; }"])?;
     nft(&["add", "set", "inet", "pg_pre", "authorized_ips6", "{ type ipv6_addr; flags dynamic; }"])?;
     nft(&["add", "chain", "inet", "pg_pre", "forward", "{ type filter hook forward priority -2; policy drop; }"])?;
-    nft(&["add", "rule", "inet", "pg_pre", "forward", "ip saddr @authorized_ips accept"])?;
-    nft(&["add", "rule", "inet", "pg_pre", "forward", "ip6 saddr @authorized_ips6 accept"])?;
-    nft(&["add", "rule", "inet", "pg_pre", "forward", "udp dport 443 drop"])?;
-    // 无 catch-all accept — 未授权设备默认 drop
+
+    if interfaces.is_empty() {
+        // 监控所有接口
+        nft(&["add", "rule", "inet", "pg_pre", "forward", "ip saddr @authorized_ips accept"])?;
+        nft(&["add", "rule", "inet", "pg_pre", "forward", "ip6 saddr @authorized_ips6 accept"])?;
+        nft(&["add", "rule", "inet", "pg_pre", "forward", "udp dport 443 drop"])?;
+    } else {
+        // 只监控指定接口
+        for iface in interfaces {
+            nft(&["add", "rule", "inet", "pg_pre", "forward", &format!("iifname \"{}\" ip saddr @authorized_ips accept", iface)])?;
+            nft(&["add", "rule", "inet", "pg_pre", "forward", &format!("iifname \"{}\" ip6 saddr @authorized_ips6 accept", iface)])?;
+        }
+        for iface in interfaces {
+            nft(&["add", "rule", "inet", "pg_pre", "forward", &format!("iifname \"{}\" udp dport 443 drop", iface)])?;
+        }
+    }
 
     // ===== ip pg_nat (NAT) =====
     nft(&["add", "table", "ip", "pg_nat"])?;
     let _ = nft(&["flush", "chain", "ip", "pg_nat", "prerouting"]);
     nft(&["add", "set", "ip", "pg_nat", "authorized_ips", "{ type ipv4_addr; flags dynamic; }"])?;
     nft(&["add", "chain", "ip", "pg_nat", "prerouting", "{ type nat hook prerouting priority -150; }"])?;
-    nft(&["add", "rule", "ip", "pg_nat", "prerouting",
-        "ip saddr != @authorized_ips tcp dport { 80, 443 } redirect to :8443"])?;
+    let redirect_rule = if interfaces.is_empty() {
+        "ip saddr != @authorized_ips tcp dport { 80, 443 } redirect to :8443".to_string()
+    } else {
+        let ifaces = interfaces.iter().map(|i| format!("\"{}\"", i)).collect::<Vec<_>>().join(", ");
+        format!("iifname {{ {} }} ip saddr != @authorized_ips tcp dport {{ 80, 443 }} redirect to :8443", ifaces)
+    };
+    nft(&["add", "rule", "ip", "pg_nat", "prerouting", &redirect_rule])?;
 
     Ok(())
 }
