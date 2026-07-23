@@ -41,5 +41,6 @@ echo "=== 推送后请确认 ==="
 echo "  1. GitHub Actions CI 是否通过"
 echo "  2. 根 README.md 和 README.zh.md 版本号正确"
 echo "  3. policy-gateway/README.md 是否同步更新"
-echo "  4. CHANGELOG / 发布说明 (如有)"
+echo "  4. docs/CROSS_COMPILE.md + build.sh 是否同步 (policy-gateway/README.md → build.sh → docs/CROSS_COMPILE.md)"
+echo "  5. CHANGELOG / 发布说明 (如有)"
 exit 0
