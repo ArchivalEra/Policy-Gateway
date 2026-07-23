@@ -1,13 +1,13 @@
-//! /permissions — 权限表页面（只读，所有有证书的设备可访问）
-//!
-//! 显示当前所有权限条目：sha256, 主机名, 位图, 状态, 硬件平台, 创建时间
+//! /permissions — 权限表页面（仅管理员可见，需 token 验证）
 
-use axum::extract::State;
+use axum::extract::{State, Query};
 use axum::http::StatusCode;
 use axum::response::Html;
 use std::sync::Arc;
+use std::collections::HashMap;
 
 use crate::AppState;
+use crate::api::manager::check_auth;
 
 fn html_escape(s: &str) -> String {
     s.chars().map(|c| match c {
@@ -20,10 +20,15 @@ fn html_escape(s: &str) -> String {
     }).collect()
 }
 
-/// GET /permissions — HTML 表格
+/// GET /permissions?token=xxx — HTML 表格（需管理员 Token）
 pub async fn handle_page(
     State(state): State<Arc<AppState>>,
+    Query(params): Query<HashMap<String, String>>,
 ) -> Result<Html<String>, StatusCode> {
+    let token = params.get("token").map(|s| s.as_str()).unwrap_or("");
+    if !check_auth(token) {
+        return Err(StatusCode::UNAUTHORIZED);
+    }
     let table = state.auth_table.read().await;
     let entries = table.iter();
 
