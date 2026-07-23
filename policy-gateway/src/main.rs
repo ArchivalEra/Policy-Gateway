@@ -187,7 +187,12 @@ async fn start_server(serve_html: bool) {
         if let (Some(url), Some(token)) = (cfg2.worker_url.as_ref(), cfg2.worker_token.as_ref()) {
             let sync = modules::worker_sync::WorkerSync::new(url, token, cfg2.worker_sync_interval);
             match registry.register(Box::new(sync)) {
-                Ok(_) => log::info!("📡 worker-sync: 已注册 (interval={}s)", cfg2.worker_sync_interval),
+                Ok(_) => {
+                    log::info!("📡 worker-sync: 已注册 (interval={}s)", cfg2.worker_sync_interval);
+                    // 后台同步循环
+                    let sync_runner = modules::worker_sync::WorkerSync::new(url, token, cfg2.worker_sync_interval);
+                    tokio::spawn(async move { sync_runner.run().await; });
+                }
                 Err(e) => log::warn!("📡 worker-sync: {}", e),
             }
         }
