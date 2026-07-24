@@ -25,6 +25,8 @@
 | `modules/storage_more.rs` | 可扩展存储后端 (bit 3+) |
 | `modules/dns_local.rs` | 自定义 DNS 映射 |
 | `modules/worker_sync.rs` | Worker 双向同步 |
+| `vm-mod` | 独立二进制: 模块安装/移除/更新/快照/回滚 |
+| `cli-registry/` | 每模块独立 .toml, vm-mod 自动注册/注销 |
 
 ## 测试
 
