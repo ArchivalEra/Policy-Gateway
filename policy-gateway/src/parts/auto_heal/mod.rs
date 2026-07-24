@@ -6,7 +6,7 @@
 //! 但也不会自动重建 — 需手动重启或依赖 procd 重启。
 
 use axum::Router;
-use crate::modules::{CoreState, GatewayModule, ModuleDeclaration};
+use crate::parts::{CoreState, GatewayModule, ModuleDeclaration};
 
 pub struct AutoHeal;
 

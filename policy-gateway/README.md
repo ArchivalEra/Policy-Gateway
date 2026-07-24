@@ -21,10 +21,12 @@
 | `api/status.rs` | 通过 id/sha256 查询状态 |
 | `api/help.rs` | MCU/浏览器/CLI/headless 接入教程 |
 | `api/permissions.rs` | 权限表 HTML (需 Token 验证) |
-| `modules/portal.rs` | 核心门户路由注册 |
-| `modules/storage_more.rs` | 可扩展存储后端 (bit 3+) |
-| `modules/dns_local.rs` | 自定义 DNS 映射 |
-| `modules/worker_sync.rs` | Worker 双向同步 |
+| `src/parts/portal.rs` | 核心门户路由注册 |
+| `src/parts/storage_more.rs` | 可扩展存储后端 (bit 3+) |
+| `src/parts/dns_local.rs` | 自定义 DNS 映射 |
+| `src/parts/worker_sync.rs` | Worker 双向同步 |
+| `src/parts/auto_heal.rs` | 崩溃自愈 |
+| `src/parts/tls_listener.rs` | TLS 监听器 |
 | `vm-mod` | 独立二进制: 模块安装/移除/更新/快照/回滚 |
 | `cli-registry/` | 每模块独立 .toml, vm-mod 自动注册/注销 |
 

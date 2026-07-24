@@ -1,7 +1,7 @@
 #![allow(dead_code)]
 //! worker-sync — 与 Cloudflare Worker 双向同步 (纯 TCP, 零额外依赖)
 
-use crate::modules::{CoreState, GatewayModule, ModuleDeclaration};
+use crate::parts::{CoreState, GatewayModule, ModuleDeclaration};
 use axum::Router;
 use std::sync::Arc;
 use std::time::Duration;

@@ -7,7 +7,7 @@
 //! 不作为模块编译时，服务以降级 HTTP 运行，不影响其他功能。
 
 use axum::Router;
-use crate::modules::{CoreState, GatewayModule, ModuleDeclaration};
+use crate::parts::{CoreState, GatewayModule, ModuleDeclaration};
 
 pub struct TlsListener;
 

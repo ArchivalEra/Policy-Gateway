@@ -8,7 +8,7 @@
 //!
 //! 注册 bit 3+。模块不可用时核心自动锁住这些 bit。
 
-use crate::modules::{CoreState, GatewayModule, ModuleDeclaration};
+use crate::parts::{CoreState, GatewayModule, ModuleDeclaration};
 use axum::Router;
 
 pub const CLAIM_BITS: &[u8] = &[3, 4];

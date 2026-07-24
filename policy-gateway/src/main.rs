@@ -1,7 +1,7 @@
 //! policy-gateway — 模块化网关核心
 //!
 //! Phase 3.3: 路由器部署验证 + storage 抽象 + v0.3.3。
-//! 计算模块已剥离为独立扩展（见 modules/compute/ 或 Worker 调度）。
+//! 计算模块已剥离为独立扩展（见 parts/compute/ 或 Worker 调度）。
 //!
 //! 启动后:
 //!   1. HTTP 服务监听 :8443
@@ -15,7 +15,7 @@ mod api;
 mod recovery;
 mod anti_abuse;
 pub mod vm;  // VM — 始终包含，核心组件
-pub mod modules;
+pub mod parts;
 pub mod store;  // redb 持久化
 pub mod event_log;  // 时间戳事件系统
 pub mod config;  // 统一配置
@@ -23,13 +23,13 @@ pub mod lang;  // 国际化
 pub mod nft;  // nftables 规则管理
 
 /// 共享状态别名（api 模块中使用）
-pub type AppState = modules::CoreState;
+pub type AppState = parts::CoreState;
 
 use std::sync::Arc;
 use ring::signature::KeyPair as _;
 use tokio::sync::RwLock;
 use axum::Router;
-use modules::CoreState;
+use parts::CoreState;
 use crate::lang::{t, S as _S};
 
 #[tokio::main(flavor = "current_thread")]
@@ -140,7 +140,7 @@ async fn start_server(serve_html: bool) {
 
     // 模块加载
     {
-        let _registry = modules::ModuleRegistry::new();
+        let _registry = parts::ModuleRegistry::new();
 
         // 检查维护模式
         let maintenance_path = "/etc/backup/policy-gateway/maintenance.json";
@@ -158,14 +158,14 @@ async fn start_server(serve_html: bool) {
             log::warn!("🛠️  维护模式激活 — 所有页面将转向 maintenance.html");
             log::warn!("   CLI 返回 'maintenance between X and Y'");
         }
-        let mut registry = modules::ModuleRegistry::new();
+        let mut registry = parts::ModuleRegistry::new();
 
         // 尝试加载 storage-more 模块
         let cfg = crate::config::Config::load();
         let storage_backend = cfg.storage_backend.clone();
         drop(cfg);
 
-        let sm = modules::storage_more::StorageMore::new(
+        let sm = parts::storage_more::StorageMore::new(
             None, // path
             if storage_backend == "dir" { Some("dir") } else { None },
         );
@@ -177,7 +177,7 @@ async fn start_server(serve_html: bool) {
         // 加载 dns-local 模块
         let cfg2 = crate::config::Config::load();
         if !cfg2.dns_hosts.is_empty() {
-            let dns = modules::dns_local::DnsLocal::new(&cfg2.dns_hosts);
+            let dns = parts::dns_local::DnsLocal::new(&cfg2.dns_hosts);
             match registry.register(Box::new(dns)) {
                 Ok(_) => log::info!("📦 dns-local: 自定义 DNS 映射已加载"),
                 Err(e) => log::warn!("📦 dns-local: {}", e),
@@ -186,12 +186,12 @@ async fn start_server(serve_html: bool) {
 
         // 加载 worker-sync 模块（配置了 worker_url 时）
         if let (Some(url), Some(token)) = (cfg2.worker_url.as_ref(), cfg2.worker_token.as_ref()) {
-            let sync = modules::worker_sync::WorkerSync::new(url, token, cfg2.worker_sync_interval);
+            let sync = parts::worker_sync::WorkerSync::new(url, token, cfg2.worker_sync_interval);
             match registry.register(Box::new(sync)) {
                 Ok(_) => {
                     log::info!("📡 worker-sync: 已注册 (interval={}s)", cfg2.worker_sync_interval);
                     // 后台同步循环
-                    let sync_runner = modules::worker_sync::WorkerSync::new(url, token, cfg2.worker_sync_interval);
+                    let sync_runner = parts::worker_sync::WorkerSync::new(url, token, cfg2.worker_sync_interval);
                     tokio::spawn(async move { sync_runner.run().await; });
                 }
                 Err(e) => log::warn!("📡 worker-sync: {}", e),
@@ -284,7 +284,7 @@ async fn start_server(serve_html: bool) {
 
     // 前台: HTTP API
     let app = Router::new()
-        .merge(modules::portal::portal_router(core.clone()));
+        .merge(parts::portal::portal_router(core.clone()));
 
     let gc_core = core.clone();
     tokio::spawn(async move {

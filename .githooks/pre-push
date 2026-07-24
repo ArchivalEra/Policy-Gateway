@@ -77,7 +77,7 @@ check_group "policy-gateway/Cargo.toml" "policy-gateway/vm/Cargo.toml"
 check_group "policy-gateway/cli/src/main.rs" "policy-gateway/cli/pg.js"
 check_group "policy-gateway/worker/vm-worker/index.ts" "policy-gateway/worker/vm-worker/wrangler.toml"
 check_group "policy-gateway/src/api/permissions.rs" "policy-gateway/docs/USER_GUIDE.md"
-check_group "policy-gateway/src/modules/portal.rs" "policy-gateway/docs/MODULES.md"
+check_group "policy-gateway/src/parts/portal.rs" "policy-gateway/docs/MODULES.md"
 check_group "policy-gateway/vm-mod/src/main.rs" "policy-gateway/docs/MODULE_GUIDE.md"
 check_group "policy-gateway/deploy/cli-registry.example.toml" "policy-gateway/cli/src/main.rs"
 

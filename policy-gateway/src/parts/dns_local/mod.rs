@@ -10,7 +10,7 @@
 //!
 //! 启动时自动部署 nftables NAT 规则将域名流量重定向。
 
-use crate::modules::{CoreState, GatewayModule, ModuleDeclaration};
+use crate::parts::{CoreState, GatewayModule, ModuleDeclaration};
 use axum::Router;
 use std::net::IpAddr;
 
