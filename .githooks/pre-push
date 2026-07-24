@@ -74,12 +74,12 @@ check_group "policy-gateway/README.md" "policy-gateway/build.sh"
 check_group "policy-gateway/build.sh" "policy-gateway/docs/CROSS_COMPILE.md"
 check_group "policy-gateway/docs/CROSS_COMPILE.md" "policy-gateway/build.sh"
 check_group "policy-gateway/Cargo.toml" "policy-gateway/vm/Cargo.toml"
-check_group "cli/src/main.rs" "cli/pg.js"
-check_group "worker/vm-worker/index.ts" "worker/vm-worker/wrangler.toml"
-check_group "src/api/permissions.rs" "policy-gateway/docs/USER_GUIDE.md"
-check_group "src/modules/portal.rs" "policy-gateway/docs/MODULES.md"
-check_group "vm-mod/src/main.rs" "policy-gateway/docs/MODULE_GUIDE.md"
-check_group "deploy/cli-registry.example.toml" "cli/src/main.rs"
+check_group "policy-gateway/cli/src/main.rs" "policy-gateway/cli/pg.js"
+check_group "policy-gateway/worker/vm-worker/index.ts" "policy-gateway/worker/vm-worker/wrangler.toml"
+check_group "policy-gateway/src/api/permissions.rs" "policy-gateway/docs/USER_GUIDE.md"
+check_group "policy-gateway/src/modules/portal.rs" "policy-gateway/docs/MODULES.md"
+check_group "policy-gateway/vm-mod/src/main.rs" "policy-gateway/docs/MODULE_GUIDE.md"
+check_group "policy-gateway/deploy/cli-registry.example.toml" "policy-gateway/cli/src/main.rs"
 
 # Firewall rule change warning
 if echo "$CHANGED" | grep -qE "nft\.rs|nftables|firewall|pg_nat"; then
