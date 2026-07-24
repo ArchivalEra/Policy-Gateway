@@ -370,10 +370,11 @@ fn print_help() {
     println!("  policy-gateway config <edit|show|reset|tls> {}", t(_S::ConfigText));
     println!("  policy-gateway init               {}", t(_S::CliInit));
     println!("  policy-gateway module             {}", t(_S::CliModule));
+    println!("  policy-gateway snapshot           创建 pg 快照 (redb + vm-mod + modules + cli-registry)");
+    println!("  policy-gateway rollback           回滚 pg 快照");
     println!();
     println!("{} (policy-gateway-vm):", t(_S::CliVm));
     println!("  init    {}", t(_S::CliVmInit));
-    println!("  install {}", t(_S::CliVmInstall));
     println!("  snapshot {}", t(_S::CliVmSnapshot));
     println!("  rollback {}", t(_S::CliVmRollback));
     println!("  list    {}", t(_S::CliVmList));
@@ -622,8 +623,43 @@ async fn cli_mode(args: &[String]) {
             println!("  加载路径: /mnt/usb/modules/<name>/module.toml");
             println!("  对象存储: Worker R2 / Oracle S3 兼容");
         }
+        Some("snapshot") => {
+            let cfg = crate::config::Config::load();
+            let snap = std::path::Path::new(&cfg.backups_dir).join("pg-snapshot");
+            let _ = std::fs::create_dir_all(&snap);
+            let mods_toml = format!("{}/modules.toml", cfg.modules_dir.trim_end_matches("/modules"));
+            let cli_reg = "/etc/config/policy-gateway/cli-registry.toml".to_string();
+            for (name, src) in &[
+                ("auth.redb", cfg.db_path.as_str()),
+                ("vm-mod", cfg.vm_mod_bin_path.as_str()),
+                ("modules.toml", mods_toml.as_str()),
+                ("cli-registry.toml", cli_reg.as_str()),
+            ] {
+                let p = std::path::Path::new(src);
+                if p.exists() { let _ = std::fs::copy(p, snap.join(name)); }
+            }
+            let ts = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap_or_default().as_secs();
+            let meta = serde_json::json!({"created_at":ts,"scope":"pg"});
+            let _ = std::fs::write(snap.join("meta.json"), serde_json::to_string_pretty(&meta).unwrap_or_default());
+            println!("📸 pg snapshot saved ({})", snap.display());
+        }
+        Some("rollback") => {
+            let cfg = crate::config::Config::load();
+            let snap = std::path::Path::new(&cfg.backups_dir).join("pg-snapshot");
+            if !snap.join("auth.redb").exists() { eprintln!("❌ no pg snapshot"); return; }
+            let _ = std::fs::create_dir_all("/etc/config/policy-gateway");
+            for (name, dst) in &[
+                ("auth.redb", cfg.db_path.as_str()),
+                ("vm-mod", cfg.vm_mod_bin_path.as_str()),
+                ("modules.toml", "/etc/config/policy-gateway/modules.toml"),
+                ("cli-registry.toml", "/etc/config/policy-gateway/cli-registry.toml"),
+            ] {
+                if snap.join(name).exists() { let _ = std::fs::copy(snap.join(name), dst); }
+            }
+            println!("⏪ pg snapshot restored");
+        }
         _ => {
-            eprintln!("用法: policy-gateway <perm|module|init>");
+            eprintln!("用法: policy-gateway <perm|module|init|snapshot|rollback>");
             std::process::exit(1);
         }
     }

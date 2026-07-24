@@ -10,6 +10,7 @@
 #   permissions.rs → docs/USER_GUIDE.md
 #   portal.rs → docs/MODULES.md
 #   vm-mod/main.rs → docs/MODULE_GUIDE.md
+#   deploy/cli-registry.example.toml → cli/src/main.rs (registry format)
 
 SENSITIVE="root-key.pem manager-token.txt seed.json .env id_ed25519 *.key *.p12"
 
@@ -78,6 +79,7 @@ check_group "worker/vm-worker/index.ts" "worker/vm-worker/wrangler.toml"
 check_group "src/api/permissions.rs" "policy-gateway/docs/USER_GUIDE.md"
 check_group "src/modules/portal.rs" "policy-gateway/docs/MODULES.md"
 check_group "vm-mod/src/main.rs" "policy-gateway/docs/MODULE_GUIDE.md"
+check_group "deploy/cli-registry.example.toml" "cli/src/main.rs"
 
 # Firewall rule change warning
 if echo "$CHANGED" | grep -qE "nft\.rs|nftables|firewall|pg_nat"; then

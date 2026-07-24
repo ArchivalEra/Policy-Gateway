@@ -1,0 +1,13 @@
+# CLI 指令注册表
+# 运行 `pg <command>` 时，如果 command 不是内置 6 指令，
+# 则在此表中查找对应的模块指令。
+# 模块通过 `vm-mod install <name> --path <path>` 注册到此文件。
+#
+# 文件位置: /etc/config/policy-gateway/cli-registry.toml
+# 此文件由 vm-mod 管理，不要手动编辑。
+
+# 示例:
+# [[commands]]
+# name = "my-pending"
+# exec = "/usr/lib/policy-gateway/modules/p2p/bin/pg-p2p"
+# description = "显示分配给自己的待审批请求"

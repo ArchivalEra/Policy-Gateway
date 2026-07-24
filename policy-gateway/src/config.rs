@@ -99,6 +99,12 @@ pub struct Config {
     pub tls_key: Option<String>,
     /// TLS 连接配置
     pub tls_profile: TlsProfile,
+    /// vm-mod 二进制路径 (pg snapshot/rollback 用)
+    pub vm_mod_bin_path: String,
+    /// 模块安装目录 (vm-mod 用)
+    pub modules_dir: String,
+    /// 快照备份目录 (所有层级共用)
+    pub backups_dir: String,
 }
 
 impl Default for Config {
@@ -114,6 +120,9 @@ impl Default for Config {
             tls_cert: None,
             tls_key: None,
             tls_profile: TlsProfile::default(),
+            vm_mod_bin_path: "/usr/bin/vm-mod".into(),
+            modules_dir: "/mnt/usb/modules".into(),
+            backups_dir: "/etc/backup/policy-gateway".into(),
             storage_backend: "redb".into(),
             storage_endpoint: None,
             storage_bucket: None,

@@ -18,6 +18,9 @@ fn t_zh_en(zh: &'static str, en: &'static str) -> &'static str {
     if lang() == "en" { en } else { zh }
 }
 
+use std::io::{Read, Write};
+use std::net::TcpStream;
+
 fn get_server() -> (String, u16) {
     let s = std::env::var("PG_SERVER").unwrap_or_else(|_| "http://localhost:8443".to_string());
     let s = s.trim_start_matches("http://").trim_start_matches("https://");
@@ -81,9 +84,51 @@ fn main() {
         },
         "help" | "--help" | "-h" => print_help(),
         _ => {
-            eprintln!("pg: '{}' 不是 pg 指令。", args[1]);
-            eprintln!("   核心指令: status, approve, reject, pending, cert sign, cert status");
-            eprintln!("   模块指令: 运行 'vm-mod list' 查看已安装模块的指令集");
+            // 检查 CLI 注册表目录
+            let dirs = ["/etc/config/policy-gateway/cli-registry", "/opt/policy-gateway/cli-registry"];
+            let mut found = false;
+            'outer: for dir in &dirs {
+                let d = std::path::Path::new(dir);
+                if !d.exists() { continue; }
+                if let Ok(entries) = std::fs::read_dir(d) {
+                    for entry in entries.flatten() {
+                        let path = entry.path();
+                        if path.extension().and_then(|e| e.to_str()) != Some("toml") { continue; }
+                        if let Ok(content) = std::fs::read_to_string(&path) {
+                            for line in content.lines() {
+                                let t = line.trim();
+                                if t.starts_with("name = \"") {
+                                    let cmd_name = t.trim_start_matches("name = \"").trim_end_matches('"');
+                                    if cmd_name == args[1] { found = true; break 'outer; }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+            if found {
+                eprintln!("ℹ️  '{}' 是模块指令，请安装对应模块后重试", args[1]);
+                eprintln!("   查看: vm-mod list");
+                eprintln!("   安装: vm-mod install <模块名>");
+            } else {
+                eprintln!("pg: '{}' 不是 pg 指令。", args[1]);
+                eprintln!("   核心指令: status, approve, reject, pending, cert sign, cert status");
+                eprintln!("   模块指令: 运行 'vm-mod list' 查看已安装模块的指令集");
+            }
+                    if found {
+                        // Found in registry — forward to the registered module
+                        eprintln!("ℹ️  '{}' 是模块指令，请安装对应模块后重试", args[1]);
+                        eprintln!("   查看: vm-mod list");
+                        eprintln!("   安装: vm-mod install <模块名>");
+                    }
+                    break;
+                }
+            }
+            if !found {
+                eprintln!("pg: '{}' 不是 pg 指令。", args[1]);
+                eprintln!("   核心指令: status, approve, reject, pending, cert sign, cert status");
+                eprintln!("   模块指令: 运行 'vm-mod list' 查看已安装模块的指令集");
+            }
         }
     }
 }
