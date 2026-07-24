@@ -1414,3 +1414,50 @@ Phase 2.9.4: 前端拆分
   → Vite 8 + 响应式
   → 通过 CLI 通信
 ```
+
+## 十六、Phase 4.0 规划 — 数据库独立 + 一键更新 + 维护模式
+
+### 数据库独立 (v0.4+)
+
+当前 pg snapshot/rollback 管理 redb。但数据库应自己管自己:
+- 自身备份/回滚（不依赖 vm 或 pg）
+- 不归 vm-mod 管（vm-mod 管外置 mod）
+- 启动时自检完整性 → 损坏则自动回滚到上一份好快照
+- 三层互不依赖: vm 管二进制, pg 管配置/vm-mod, 数据库管自己
+
+```
+数据库 snapshots:
+  /etc/config/policy-gateway/db-snapshots/
+    last-good.redb       # 每次写入后原子更新
+    hourly-*.redb        # 定时备份
+  
+pg snapshot: 只备份 vm-mod + modules.toml + cli-registry, 不碰 auth.redb
+vm snapshot:  只备份 /usr/sbin/policy-gateway + 配置, 不碰数据库
+```
+
+### 一键更新 (v0.4+)
+
+```
+pg update-all
+  1. 下载最新 policy-gateway → 原子替换
+  2. vm snapshot pre-update (二进制 + 配置)
+  3. 更新 vm-mod 自身
+  4. 更新所有 mod (vm-mod update --all)
+  5. 数据库 schema 自动迁移
+  6. 重启服务
+```
+
+### 维护模式
+
+- portal 主站 → maintenance.html（可选）
+- mod 继续运行（不影响已连接设备）
+- CLI 对单片机返回 "maintenance until <timestamp>"
+- 开关放 pg `config maintenance`, 不归 vm
+
+### 搁置 (v0.4+)
+```
+- P2P 模块家族 (p2p-reg, p2p-chat, p2p-compute)
+- IPv6 模块
+- ECH 集成
+- Vite 8 前端分离
+```
