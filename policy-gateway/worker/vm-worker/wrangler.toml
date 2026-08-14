@@ -19,8 +19,10 @@ routes = [
   { pattern = "api/recover/*", zone_id = "" },    # /api/recover/*
 ]
 
-# 环境变量
+# 环境变量 — 全部必须通过 `wrangler secret put <名称>` 注入！
+# ⚠️ 留空部署 = 恢复码/同步端点完全无鉴权，任何人可读写。
+# 部署前自检: wrangler secret list 应显示以下 3 项均已设置。
 [vars]
-RECOVERY_SALT = ""
-RECOVERY_TOKEN = ""
-WORKER_TOKEN = ""
+RECOVERY_SALT = ""          # 必填: openssl rand -hex 32（恢复码哈希盐）
+RECOVERY_TOKEN = ""         # 必填: 恢复验证通过后下发的管理令牌
+GATEWAY_SYNC_TOKEN = ""     # 必填: 路由器 worker-sync 上报的鉴权令牌

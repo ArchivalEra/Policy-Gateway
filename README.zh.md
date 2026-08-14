@@ -25,7 +25,7 @@
 
 ---
 
-*这个项目诞生于一块45块闲鱼收的newifi3 D2（MT7621AT，128MB内存，10MB SPI闪存）。每一个设计决策——单二进制、无动态链接、位图权限代替证书链、nftables 代替 iptables、零拷贝事件日志、sub-1MB UPX目标——都是那块硬件逼出来的。如果它能在一块十年前的 MIPS 路由器上跑，它能在任何地方跑。*
+*这个项目诞生于一块低端 MIPS 路由器（MT7621 级别，128MB 内存，10MB SPI 闪存）。每一个设计决策——单二进制、无动态链接、位图权限代替证书链、nftables 代替 iptables、零拷贝事件日志、sub-1MB UPX目标——都是那块硬件逼出来的。如果它能在一块十年前的 MIPS 路由器上跑，它能在任何地方跑。*
 
 ---
 - **两阶段确认** — 防止网络断开导致的幽灵证书
@@ -47,11 +47,11 @@ cd policy-gateway
 cargo test                          # 41 测试, 0 警告
 cargo build --release               # ~1.7MB (strip 后)
 
-# 本地运行
-MANAGER_TOKEN=test ./target/release/policy-gateway serve
+# 本地运行（先用 openssl rand -hex 16 生成强令牌）
+MANAGER_TOKEN=your-token ./target/release/policy-gateway serve
 ```
 
-打开 `http://localhost:8443/manager?token=test`
+打开 `http://localhost:8443/manager?token=your-token`
 
 ### 路由器部署 (MIPS 交叉编译)
 

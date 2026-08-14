@@ -27,7 +27,7 @@ Device          Router (policy-gateway)
 
 ---
 
-*This project was born from a ¥45 newifi3 D2 (MT7621AT, 128MB RAM, 10MB SPI flash) bought on a second-hand market. Every design decision — single binary, no dynamic linking, bitmap permissions instead of certificate chains, nftables instead of iptables, zero-copy event log, sub-1MB UPX target — was forced by that hardware. If it runs on a decade-old MIPS router with 10MB of flash, it runs anywhere.*
+*This project was born from a low-end MIPS router (MT7621-class, 128MB RAM, 10MB SPI flash). Every design decision — single binary, no dynamic linking, bitmap permissions instead of certificate chains, nftables instead of iptables, zero-copy event log, sub-1MB UPX target — was forced by that hardware. If it runs on a decade-old MIPS router with 10MB of flash, it runs anywhere.*
 
 ---
 - **Two-phase commit** — prevents ghost certificates on network drop
@@ -49,11 +49,11 @@ cd policy-gateway
 cargo test                          # 41 tests, 0 warnings
 cargo build --release               # ~1.7MB stripped
 
-# Run locally
-MANAGER_TOKEN=test ./target/release/policy-gateway serve
+# Run locally (generate a strong token first: openssl rand -hex 16)
+MANAGER_TOKEN=your-token ./target/release/policy-gateway serve
 ```
 
-Open `http://localhost:8443/manager?token=test`
+Open `http://localhost:8443/manager?token=your-token`
 
 ### Deploy on router (MIPS cross-compile)
 

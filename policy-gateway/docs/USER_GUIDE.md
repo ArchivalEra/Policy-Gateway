@@ -87,4 +87,4 @@ worker_token = "xxx"
 monitor_interfaces = ["br-lan"]
 ```
 
-Env overrides: `PG_MANAGER_TOKEN`, `PG_WORKER_URL`, `PG_WORKER_TOKEN`, `PG_STORAGE`, etc.
+Env overrides: `PG_MANAGER_TOKEN`, `PG_WORKER_URL`, `PG_GATEWAY_SYNC_TOKEN`, `PG_STORAGE`, etc.

@@ -173,7 +173,7 @@ impl Config {
         if let Ok(v) = std::env::var("PG_STORAGE_BUCKET") { self.storage_bucket = Some(v); }
         if let Ok(v) = std::env::var("PG_MIRROR_URL") { self.mirror_worker_url = Some(v); }
         if let Ok(v) = std::env::var("PG_WORKER_URL") { self.worker_url = Some(v); }
-        if let Ok(v) = std::env::var("PG_WORKER_TOKEN") { self.worker_token = Some(v); }
+        if let Ok(v) = std::env::var("PG_GATEWAY_SYNC_TOKEN") { self.worker_token = Some(v); }
         if let Ok(v) = std::env::var("PG_WORKER_SYNC_INTERVAL") { self.worker_sync_interval = v.parse().unwrap_or(300); }
         if let Ok(v) = std::env::var("PG_MONITOR_INTERFACES") {
             self.monitor_interfaces = v.split(',').map(|s| s.trim().to_string()).filter(|s| !s.is_empty()).collect();

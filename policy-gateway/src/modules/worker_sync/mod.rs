@@ -12,18 +12,25 @@ pub struct WorkerSync {
     worker_host: String,
     worker_token: String,
     interval_secs: u64,
+    use_tls: bool,
     core: Option<Arc<CoreState>>,
 }
 
 impl WorkerSync {
     pub fn new(worker_url: &str, worker_token: &str, interval_secs: u64) -> Self {
+        let use_tls = worker_url.starts_with("https://");
         let host = worker_url
             .trim_start_matches("https://")
             .trim_start_matches("http://")
             .trim_end_matches('/')
             .to_string();
-        log::info!("📡 worker-sync: {} (每 {}s 同步)", host, interval_secs);
-        Self { worker_host: host, worker_token: worker_token.to_string(), interval_secs, core: None }
+        log::info!(
+            "📡 worker-sync: {} (每 {}s 同步, {})",
+            host,
+            interval_secs,
+            if use_tls { "TLS" } else { "明文(仅测试)" }
+        );
+        Self { worker_host: host, worker_token: worker_token.to_string(), interval_secs, use_tls, core: None }
     }
 
     pub async fn run(&self) {
@@ -72,21 +79,47 @@ impl WorkerSync {
             (self.worker_host.clone(), 443u16)
         };
 
-        match tokio::net::TcpStream::connect(format!("{}:{}", host, port)).await {
-            Ok(mut stream) => {
-                let _ = stream.write_all(request.as_bytes()).await;
-                let mut buf = vec![0u8; 4096];
-                let n = stream.read(&mut buf).await.unwrap_or(0);
-                let resp = String::from_utf8_lossy(&buf[..n]);
-                let status = resp.lines().next()
-                    .and_then(|l| l.split_whitespace().nth(1))
-                    .and_then(|s| s.parse::<u16>().ok())
-                    .unwrap_or(0);
-                Ok(status)
-            }
-            Err(e) => Err(format!("connect {}:{}: {}", host, port, e)),
+        let tcp = tokio::net::TcpStream::connect(format!("{}:{}", host, port))
+            .await
+            .map_err(|e| format!("connect {}:{}: {}", host, port, e))?;
+
+        if self.use_tls {
+            // TLS 加密传输（https），令牌与事件不明文上路
+            let mut roots = rustls::RootCertStore::empty();
+            roots.extend(webpki_roots::TLS_SERVER_ROOTS.iter().cloned());
+            let config = rustls::ClientConfig::builder()
+                .with_root_certificates(roots)
+                .with_no_client_auth();
+            let connector = tokio_rustls::TlsConnector::from(Arc::new(config));
+            let server_name = rustls::pki_types::ServerName::try_from(host.clone())
+                .map_err(|e| format!("invalid hostname {}: {}", host, e))?;
+            let mut stream = connector
+                .connect(server_name, tcp)
+                .await
+                .map_err(|e| format!("tls handshake {}: {}", host, e))?;
+            let _ = stream.write_all(request.as_bytes()).await;
+            let mut buf = vec![0u8; 4096];
+            let n = stream.read(&mut buf).await.unwrap_or(0);
+            Ok(parse_http_status(&buf[..n]))
+        } else {
+            // 明文 TCP（仅 http:// 测试地址）
+            let mut stream = tcp;
+            let _ = stream.write_all(request.as_bytes()).await;
+            let mut buf = vec![0u8; 4096];
+            let n = stream.read(&mut buf).await.unwrap_or(0);
+            Ok(parse_http_status(&buf[..n]))
         }
     }
+}
+
+/// 从原始 HTTP 响应中解析状态码（0 = 解析失败）
+fn parse_http_status(resp: &[u8]) -> u16 {
+    String::from_utf8_lossy(resp)
+        .lines()
+        .next()
+        .and_then(|l| l.split_whitespace().nth(1))
+        .and_then(|s| s.parse::<u16>().ok())
+        .unwrap_or(0)
 }
 
 impl GatewayModule for WorkerSync {

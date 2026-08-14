@@ -56,8 +56,12 @@ export default {
       if (!pin || pin.length < 8) {
         return json({ error: '恢复码至少 8 位' }, 400);
       }
+      const salt = env.RECOVERY_SALT;
+      if (!salt) {
+        return json({ error: 'RECOVERY_SALT 未配置，拒绝设置恢复码' }, 500);
+      }
       // 存 SHA256(PIN + env secret)
-      const digest = await sha256(pin + (env.RECOVERY_SALT || 'vm-worker-default'));
+      const digest = await sha256(pin + salt);
       await env[RECOVERY_KV].put('recovery_hash', digest);
       return json({ status: 'ok', message: '恢复码已设置' });
     }
@@ -68,7 +72,11 @@ export default {
       if (!stored) {
         return json({ error: '未设置恢复码' }, 404);
       }
-      const digest = await sha256(pin + (env.RECOVERY_SALT || 'vm-worker-default'));
+      const salt = env.RECOVERY_SALT;
+      if (!salt) {
+        return json({ error: 'RECOVERY_SALT 未配置，无法验证' }, 500);
+      }
+      const digest = await sha256(pin + salt);
       if (digest === stored) {
         return json({ status: 'ok', token: env.RECOVERY_TOKEN || '' });
       }
@@ -79,7 +87,7 @@ export default {
     if (path === '/api/sync/push' && method === 'POST') {
       const body = await request.json();
       const auth = request.headers.get('X-Sync-Token') || body.token;
-      if (auth !== env.WORKER_TOKEN) return json({ error: 'unauthorized' }, 401);
+      if (auth !== env.GATEWAY_SYNC_TOKEN) return json({ error: 'unauthorized' }, 401);
       
       // Store incoming events in KV
       const events = body.events || [];
@@ -92,7 +100,7 @@ export default {
 
     if (path === '/api/sync/pull' && method === 'GET') {
       const auth = url.searchParams.get('token');
-      if (auth !== env.WORKER_TOKEN) return json({ error: 'unauthorized' }, 401);
+      if (auth !== env.GATEWAY_SYNC_TOKEN) return json({ error: 'unauthorized' }, 401);
       
       // Return pending events for the router
       const events = [];

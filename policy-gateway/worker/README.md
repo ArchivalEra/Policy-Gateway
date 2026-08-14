@@ -5,7 +5,7 @@
 ```
 worker/
 ├── vm-worker/                  ← 核心恢复 Worker (写死，不需要升级)
-│   ├── index.js                ← /recover + /api/recover/*
+│   ├── index.ts                ← /recover + /api/recover/*
 │   └── wrangler.toml           ← Pages 配置 (2 KV: RECOVERY + CONFIG)
 │
 ├── policy-gateway-mirror/      ← 可选 mirror 模块 (TypeScript，由 vm-mod 管理)
@@ -31,7 +31,13 @@ cd vm-worker
 wrangler kv:namespace create RECOVERY
 wrangler kv:namespace create CONFIG
 # 更新 wrangler.toml 中的 KV ID
-wrangler secret put RECOVERY_TOKEN
+
+# 注入密钥（wrangler.toml 里留空的 3 项，缺一不可！）
+wrangler secret put RECOVERY_SALT      # openssl rand -hex 32
+wrangler secret put RECOVERY_TOKEN     # openssl rand -hex 32
+wrangler secret put GATEWAY_SYNC_TOKEN # 与路由器 PG_GATEWAY_SYNC_TOKEN 一致
+
+# ⚠️ 自检: wrangler secret list 应显示以上 3 项
 wrangler deploy
 ```
 
